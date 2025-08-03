@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Smart Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" />
+    <style>
+        body, html {
+          margin: 0; padding: 0;
+          font-family: Arial, sans-serif;
+          background: white; color: black;
+          height: 100%;
+        }
+        #darkToggle {
+          position: fixed; top: 20px; right: 20px;
+          background: rgba(0, 0, 0, 0.05);
+          padding: 8px 12px; border-radius: 8px;
+          cursor: pointer; font-weight: bold;
+          user-select: none;
+          z-index: 100;
+        }
+        #branding {
+          position: fixed;
+          top: 20px;
+          left: 20px;
+          font-size: 20px;
+          font-weight: bold;
+          color: #007BFF;
+          user-select: none;
+          z-index: 100;
+        }
+        .dark { background: #121212; color: white; }
+        .dark #container { background: #1e1e1e; }
+        .dark input, .dark button { background: #333; color: white; border-color: #555; }
+        .dark #darkToggle { background: rgba(255,255,255,0.1); color: #00aaff; }
+
+        #container {
+          display: flex; flex-direction: column;
+          max-width: 500px; margin: 50px auto;
+          padding: 30px; text-align: center;
+          background: rgba(0,0,0,0.03);
+          border-radius: 12px;
+          box-shadow: 0 0 30px rgba(0,0,0,0.1);
+          position: relative;
+          padding-bottom: 150px;
+        }
+        #logo {
+          width: 100px; margin: 0 auto 15px;
+          border-radius: 8px;
+        }
+        h2 { margin: 10px 0 20px; }
+
+
+
+        .input-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          position: fixed;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 100%;
+          max-width: 600px;
+          padding: 0 16px;
+          background: transparent;
+          z-index: 100;
+        }
+        input[type="text"] {
+          flex: 1;
+          padding: 12px;
+          font-size: 16px;
+          border-radius: 20px;
+          border: 2px solid #555;
+          outline-offset: 2px;
+        }
+        button {
+          margin-top: 15px; padding: 12px 20px;
+          font-size: 16px; border-radius: 8px;
+          border: none; background: #007BFF;
+          color: white; cursor: pointer;
+          user-select: none;
+        }
+        button:hover { background: #0056b3; }
+        #speechBtn {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: linear-gradient(145deg, #00c6ff, #0072ff);
+          color: white;
+          border: none;
+          cursor: pointer;
+          font-size: 22px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          transition: transform 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          user-select: none;
+        }
+        #speechBtn:hover {
+          transform: scale(1.1);
+          background: linear-gradient(145deg, #0072ff, #00c6ff);
+        }
+        #message {
+          margin-top: 20px;
+          min-height: 40px;
+          white-space: pre-line;
+          font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div id="darkToggle">Toggle Dark Mode</div>
+<div id="branding">Smart Scheduler</div>
+
+<div id="container">
+    <img src="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" id="logo" alt="Logo" />
+    <h2>Let me plan your schedule</h2>
+    <div id="message">Please sign in to get started.</div>
+    <button id="authorize_button" disabled>Authorize Google Calendar</button>
+    <button id="signout_button" style="display:none;">Sign Out</button>
+</div>
+
+<div class="input-wrapper">
+    <input type="text" id="inputBox" placeholder="What are your plans?" />
+    <button id="speechBtn" title="Start Voice Input">🎤</button>
+</div>
+
+<!-- Google API scripts with async defer -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+
+<script>
+    let tokenClient;
+    let gapiInited = false;
+    let gisInited = false;
+    let accessToken = null;
+
+    const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+    const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+
+    const authorizeButton = document.getElementById('authorize_button');
+    const signoutButton = document.getElementById('signout_button');
+    const message = document.getElementById('message');
+    const inputBox = document.getElementById('inputBox');
+
+    const state = {
+      who: null,
+      time: null,
+      date: null,
+      where: null,
+      others: [],
+      emails: []
+    };
+
+    // --- Util: Convert "Monday" to actual date
+    function getDateFromDayName(dayName) {
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const today = new Date();
+      const todayIndex = today.getDay();
+      const targetIndex = days.findIndex(d => d.toLowerCase() === dayName.toLowerCase());
+      if (targetIndex < 0) return null;
+      const diff = (targetIndex + 7 - todayIndex) % 7 || 7;
+      const resultDate = new Date(today);
+      resultDate.setDate(today.getDate() + diff);
+      return resultDate;
+    }
+
+    function updateProgress() {
+      const filled = [state.who, state.time, state.date, state.where].filter(Boolean).length;
+      message.innerText = `${filled}/4 details collected.`;
+      return filled;
+    }
+
+    function extractDetails(text) {
+      const whoMatch = /(I|me|myself|with (my|the|a)? ?\w+)/i;
+      const timeMatch = /\b(\d{1,2})(:\d{2})?\s?(am|pm)?\b/i;
+      const dateMatch = /\b(today|tomorrow|on\s+\w+\s+\d{1,2}|\d{4}-\d{2}-\d{2}|\b(?:Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\b)/i;
+      const whereMatch = /\b(to|at|in)\s+([a-zA-Z\s]+)\b/i;
+      const emailMatch = /[\w.-]+@[\w.-]+\.\w+/g;
+
+      let dateValue = null;
+      const dateRaw = dateMatch.exec(text)?.[0];
+      if (dateRaw) {
+        if (/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/i.test(dateRaw)) {
+          const d = getDateFromDayName(dateRaw);
+          if (d) dateValue = d.toISOString().split('T')[0];
+        } else if (/today/i.test(dateRaw)) {
+          const d = new Date();
+          dateValue = d.toISOString().split('T')[0];
+        } else if (/tomorrow/i.test(dateRaw)) {
+          const d = new Date();
+          d.setDate(d.getDate() + 1);
+          dateValue = d.toISOString().split('T')[0];
+        } else {
+          dateValue = dateRaw;
+        }
+      }
+
+      return {
+        who: whoMatch.test(text) ? 'you' : null,
+        time: timeMatch?.[0] || null,
+        date: dateValue,
+        where: whereMatch?.[2] || null,
+        others: [...text.matchAll(/with\s+([a-zA-Z\s]+)/gi)].map(m => m[1].trim()),
+        emails: [...(text.match(emailMatch) || [])]
+      };
+    }
+
+    function askMissingDetails() {
+      const missing = [];
+      if (!state.date) missing.push("When (date)?");
+      if (!state.time) missing.push("What time?");
+      if (!state.where) missing.push("Where?");
+      if (!state.who) missing.push("Who is going?");
+      if (state.others.length > 0 && state.emails.length < state.others.length) {
+        const nextName = state.others[state.emails.length];
+        missing.push(`Email for ${nextName}?`);
+      }
+      if (missing.length) {
+        message.innerText += '\n' + missing.join('\n');
+      }
+    }
+
+    inputBox.addEventListener("keypress", async (e) => {
+      if (e.key === "Enter") {
+        const text = inputBox.value.trim();
+        if (!text) return;
+        const details = extractDetails(text);
+
+        if (details.who) state.who = details.who;
+        if (details.time) state.time = details.time;
+        if (details.date) state.date = details.date;
+        if (details.where) state.where = details.where;
+        if (details.others.length) state.others = details.others;
+        if (details.emails.length) state.emails = details.emails;
+
+        const count = updateProgress();
+
+        if (count < 4 || (state.others.length && state.emails.length < state.others.length)) {
+          askMissingDetails();
+        } else {
+          createCalendarEvent();
+        }
+
+        inputBox.value = '';
+      }
+    });
+
+    function createCalendarEvent() {
+      if (!gapi.client.calendar) {
+        message.innerText = "⚠️ Google Calendar client not initialized.";
+        return;
+      }
+
+      const start = new Date(state.date);
+      if (!state.time) {
+        message.innerText += "\nPlease provide the time.";
+        return;
+      }
+      // Parsing time - simple version:
+      let hour = 9, minute = 0;
+      const timeParts = state.time.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+      if (timeParts) {
+        hour = parseInt(timeParts[1]);
+        minute = parseInt(timeParts[2] || "0");
+        const ampm = timeParts[3];
+        if (ampm) {
+          if (ampm.toLowerCase() === "pm" && hour < 12) hour += 12;
+          if (ampm.toLowerCase() === "am" && hour === 12) hour = 0;
+        }
+      }
+      start.setHours(hour, minute, 0, 0);
+
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+
+      const event = {
+        summary: `Meeting at ${state.where}`,
+        location: state.where,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+        attendees: state.emails.map(email => ({ email }))
+      };
+
+      gapi.client.calendar.events.insert({
+        calendarId: 'primary',
+        resource: event
+      }).then(res => {
+        message.innerText = `✅ Event created: ${res.result.summary} at ${new Date(res.result.start.dateTime).toLocaleString()}`;
+        // Reset state for next event
+        Object.keys(state).forEach(k => state[k] = Array.isArray(state[k]) ? [] : null);
+        updateProgress();
+      }).catch(err => {
+        console.error(err);
+        message.innerText = "❌ Failed to create event.";
+      });
+    }
+
+    // --- Google API initialization ---
+    function gapiLoaded() {
+      gapi.load('client', initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+      try {
+        await gapi.client.init({
+          apiKey: 'AIzaSyBq1W8rv77mcFyZqYbsrEBJxYm6nvpdxcQ',
+          discoveryDocs: [DISCOVERY_DOC],
+        });
+        gapiInited = true;
+        maybeEnableButtons();
+      } catch (error) {
+        console.error("Error initializing GAPI client:", error);
+        message.innerText = "Error initializing Google API client. Check console.";
+      }
+    }
+
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com',
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+          accessToken = tokenResponse.access_token;
+          gapi.client.setToken(tokenResponse);
+          message.innerText = "✅ Signed in!";
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'block';
+        }
+      });
+      gisInited = true;
+      maybeEnableButtons();
+    }
+
+    function maybeEnableButtons() {
+      if (gapiInited && gisInited) {
+        authorizeButton.disabled = false;
+      }
+    }
+
+    authorizeButton.disabled = true;
+
+    authorizeButton.onclick = () => {
+      if (!tokenClient) {
+        console.error('Token client not initialized yet.');
+        return;
+      }
+      tokenClient.requestAccessToken();
+    };
+
+    signoutButton.onclick = () => {
+      if (accessToken) {
+        google.accounts.oauth2.revoke(accessToken);
+        accessToken = null;
+        message.innerText = "Signed out.";
+        authorizeButton.style.display = 'block';
+        signoutButton.style.display = 'none';
+      }
+    };
+
+    // --- Dark Mode Toggle ---
+    document.getElementById('darkToggle').onclick = () => {
+      document.body.classList.toggle('dark');
+    };
+
+    // --- Speech Recognition ---
+    document.getElementById('speechBtn').onclick = () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Speech Recognition API not supported in this browser.");
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event) => {
+        inputBox.value = event.results[0][0].transcript;
+        inputBox.dispatchEvent(new KeyboardEvent("keypress", { key: "Enter" }));
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        alert("Speech recognition error: " + event.error);
+      };
+
+      recognition.start();
+    };
+
+    // --- Initialization sequence ---
+    window.onload = () => {
+      gapiLoaded();
+      // gisLoaded called after GSI script loads below
+    };
+
+    // Ensure gisLoaded runs after GSI script loads
+    const gsiScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (gsiScript) {
+      gsiScript.addEventListener('load', () => {
+        gisLoaded();
+      });
+    } else {
+      // fallback
+      gisLoaded();
+    }
+</script>
+</body>
+</html>
