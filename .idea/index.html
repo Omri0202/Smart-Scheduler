@@ -2,18 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Smart Scheduler</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="../manifest.json" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Smart Scheduler" />
+    <link rel="apple-touch-icon" href="../icon-192.png" />
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js"></script>
     <style>
         body, html {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
-  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: black;
   transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 #cornerText {
  position: fixed;
@@ -25,15 +46,18 @@
  border-radius: 6px;
 }
         #container {
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.95);
   max-width: 500px;
+  width: 90%;
   margin: 5% auto 0;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
   text-align: center;
   height: 60vh;
   overflow-y: auto;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
         #inputContainer {
   position: fixed;
@@ -49,12 +73,21 @@
 
 input[type="text"] {
   flex: 1;
-  padding: 12px;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 25px;
   font-size: 16px;
-  border-radius: 8px;
-  border: 2px solid #555;
+  outline: none;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  min-height: 44px;
+  box-sizing: border-box;
 }
-        button {
+
+button {
   padding: 12px 20px;
   font-size: 16px;
   border-radius: 8px;
@@ -444,6 +477,65 @@ body.dark #cornerText, body.dark #darkToggle {
       return result;
     }
 
+    // Function to generate a smart event name using LLM
+    async function generateSmartEventName() {
+      const prompt = `Create a concise, descriptive event title based on these details:
+- Date: ${eventDetails.date}
+- Time: ${eventDetails.time}
+- Attendees: ${eventDetails.attendees}
+- Location: ${eventDetails.location}
+
+Generate a natural, professional event title (2-6 words). Examples:
+- "Bank Visit with Mom"
+- "Team Meeting at Office"
+- "Lunch with Friends"
+- "Doctor Appointment"
+- "Family Dinner"
+
+Respond with ONLY the event title, no quotes or extra text.`;
+
+      try {
+        const body = {
+          model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert at creating concise, professional event titles. Respond with only the event title, nothing else."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 50,
+          temperature: 0.3
+        };
+
+        const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const eventName = data.choices?.[0]?.message?.content?.trim() || "Event";
+        
+        console.log(`Generated smart event name: "${eventName}"`);
+        return eventName;
+      } catch (error) {
+        console.error('Error generating smart event name:', error);
+        // Fallback to a simple name
+        return `${eventDetails.location ? eventDetails.location.charAt(0).toUpperCase() + eventDetails.location.slice(1) : 'Event'} ${eventDetails.attendees ? 'with ' + eventDetails.attendees : ''}`;
+      }
+    }
+
          const authBtn = document.getElementById('authorize_button');
      const signOutBtn = document.getElementById('signout_button');
      const inputBox = document.getElementById('inputBox');
@@ -546,7 +638,7 @@ body.dark #cornerText, body.dark #darkToggle {
 
       let systemPrompt = isFinal
         ? "Based on this conversation, create a calendar event. Return a JSON object with this format: {\"summary\": \"Event title\", \"dateTime\": \"2025-08-01T14:00:00Z\"}. Use ISO 8601 format and UTC time. Combine the date and time information to create the dateTime field."
-        : `You are a helpful assistant that helps users schedule events. You need to gather 4 specific pieces of information: 1) Date/Day of the event, 2) Time of the event (e.g., 9 AM, 2:30 PM), 3) Who is attending (e.g., myself, mom, brother, me), and 4) Location/Where the event will be (e.g., bank, home, office).
+        : `You are a helpful assistant that helps users schedule events. You need to gather 4 specific pieces of information: 1) Date/Day of the event, 2) Time of the event (e.g., 9 AM, 2:30 PM), 3) Who is attending (e.g., myself, mom, brother, me), and 4) Location/Where the event will be (e.g., bank, home, office). Once all details are gathered, the system will automatically generate a smart, descriptive event name.
 
 Current date and time: {{CURRENT_DATETIME}}
 
@@ -643,8 +735,8 @@ Ask one question at a time to gather the missing details. Be friendly and conver
 
     async function createEventFromDetails() {
       try {
-        // Create a summary from the gathered details
-        const summary = `Event - ${eventDetails.attendees} at ${eventDetails.location}`;
+        // Generate a smart event name using LLM
+        const summary = await generateSmartEventName();
 
         // Parse date and time to create a proper DateTime
         const dateTime = parseDateTime(eventDetails.date, eventDetails.time);
@@ -751,12 +843,12 @@ Ask one question at a time to gather the missing details. Be friendly and conver
               throw new Error(`Event date must be in the future. The specified time (${eventDate.toLocaleString()}) is in the past relative to the session start time (${baseDate.toLocaleString()}).`);
             }
 
-            // Create a comprehensive event summary
-            const eventSummary = `${summary} - ${eventDetails.attendees ? `with ${eventDetails.attendees}` : ''} ${eventDetails.location ? `at ${eventDetails.location}` : ''}`.trim();
+            // Generate smart event name instead of using basic summary
+            const smartEventName = await generateSmartEventName();
 
-            const eventLink = await createEvent(eventSummary, eventDate, eventDetails.attendeeEmails);
+            const eventLink = await createEvent(smartEventName, eventDate, eventDetails.attendeeEmails);
             const inviteInfo = eventDetails.attendeeEmails.length > 0 ? ` (Invites sent to: ${eventDetails.attendeeEmails.join(', ')})` : '';
-            msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${eventSummary}</a>${inviteInfo}`;
+            msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${smartEventName}</a>${inviteInfo}`;
             questionCount = 0;
             chatHistory = [];
             eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
@@ -809,6 +901,17 @@ Ask one question at a time to gather the missing details. Be friendly and conver
       // Set base date for the session
       baseDate = new Date();
       console.log('Session started with base date:', baseDate.toLocaleString());
+      
+      // Register PWA Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      }
     };
 </script>
 </body>
