@@ -3,159 +3,410 @@
 <head>
     <meta charset="UTF-8" />
     <title>Smart Scheduler</title>
-
-    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js"></script>
-
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: white;
-            color: black;
-            height: 100%;
-        }
-
-        #darkToggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.05);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .dark {
-            background: #121212;
-            color: white;
-        }
-
-        .dark #container {
-            background: #1e1e1e;
-        }
-
-        .dark input,
-        .dark button {
-            background: #333;
-            color: white;
-        }
-
-        .dark #darkToggle {
-            background: rgba(255, 255, 255, 0.1);
-            color: #00aaff;
-        }
-
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: black;
+  transition: background-color 0.3s, color 0.3s;
+}
+#cornerText {
+ position: fixed;
+ top: 20px;
+ left: 20px;
+ background: rgba(255,255,255,0.7);
+ padding: 10px 15px;
+ font-weight: bold;
+ border-radius: 6px;
+}
         #container {
-            display: flex;
-            flex-direction: column;
-            max-width: 500px;
-            padding: 30px;
-            margin: 50px auto;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            background: rgba(0, 0, 0, 0.03);
-        }
+  background: rgba(255,255,255,0.9);
+  max-width: 500px;
+  margin: 5% auto 0;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  text-align: center;
+  height: 60vh;
+  overflow-y: auto;
+}
+        #inputContainer {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 500px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
 
-        #logo {
-            width: 100px;
-            margin: 0 auto 15px;
-            border-radius: 8px;
-        }
-
-        h2 {
-            margin: 10px 0 20px;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            margin-top: 15px;
-            border-radius: 8px;
-            border: 2px solid #555;
-        }
-
+input[type="text"] {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 2px solid #555;
+}
         button {
-            margin-top: 15px;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
-            background: #007BFF;
-            color: white;
-            cursor: pointer;
-        }
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #007BFF;
+  color: white;
+  cursor: pointer;
+}
 
-        button:hover {
-            background: #0056b3;
-        }
+#voiceButton {
+  padding: 12px;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #28a745;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+}
 
-        #speechBtn {
-            margin-left: 10px;
-            padding: 10px 16px;
-            border-radius: 50%;
-            background: black;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
+#voiceButton.recording {
+  background: #dc3545;
+  animation: pulse 1s infinite;
+}
 
-        #speechBtn:hover {
-            background: #1c7c33;
-        }
-
-        #message {
-            margin-top: 20px;
-            min-height: 40px;
-        }
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+button:hover { background: #0056b3; }
+#message {
+ margin-top: 15px;
+ min-height: 30px;
+}
+#darkToggle {
+ position: fixed;
+ top: 20px;
+ right: 20px;
+ background: rgba(255,255,255,0.7);
+ padding: 8px 12px;
+ border-radius: 8px;
+ cursor: pointer;
+ font-weight: bold;
+}
+        body.dark {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d1b69 100%);
+  color: white;
+}
+body.dark #container { background: #1e1e1e; color: white; }
+body.dark input, body.dark button { background: #333; color: white; }
+body.dark #cornerText, body.dark #darkToggle {
+ background: rgba(0,0,0,0.7);
+ color: #00aaff;
+}
     </style>
 </head>
 <body>
+<div id="cornerText">let me plan your schedule</div>
 <div id="darkToggle">Toggle Dark Mode</div>
 
 <div id="container">
-    <img src="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" id="logo" alt="Logo" />
-    <h2>Let me plan your schedule</h2>
-    <input type="text" id="inputBox" placeholder="What are your plans?" disabled />
-    <button id="speechBtn">🎤</button>
+    <h2>Smart Scheduler</h2>
     <div id="message">Please sign in to get started.</div>
     <button id="authorize_button" style="display:none;">Authorize Google Calendar</button>
     <button id="signout_button" style="display:none;">Sign Out</button>
 </div>
 
+<div id="inputContainer">
+    <input type="text" id="inputBox" placeholder="What are your plans?" disabled />
+    <button id="voiceButton" disabled>🎤</button>
+</div>
+
 <script>
     const CLIENT_ID = '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com';
+    // SECURITY WARNING: API keys should not be exposed in client-side code
+    // In production, this should be handled by a backend server
     const TOGETHER_API_KEY = '1e60c638e6c99899e27a3bec16b056dfd8fc1e5cace56a9c09e3a324f0de8f39';
-
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
     const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
     let tokenClient, accessToken = null;
     let gapiInited = false, gisInited = false;
+    let chatHistory = [];
+    let questionCount = 0;
+    let baseDate = new Date(); // Base date for the session
+    let eventDetails = {
+      date: null,
+      time: null,
+      attendees: null,
+      location: null
+    };
 
-    const authBtn = document.getElementById('authorize_button');
-    const signOutBtn = document.getElementById('signout_button');
-    const inputBox = document.getElementById('inputBox');
-    const msg = document.getElementById('message');
-    const darkToggle = document.getElementById('darkToggle');
-    const speechBtn = document.getElementById('speechBtn');
+    // Validate API key format
+    function validateApiKey(apiKey) {
+      if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
+        console.error('Invalid API key format');
+        return false;
+      }
+      return true;
+    }
+
+    // Function to track what information we still need
+    function getMissingInfo() {
+      const missing = [];
+      if (!eventDetails.date) missing.push('date/day');
+      if (!eventDetails.time) missing.push('time');
+      if (!eventDetails.attendees) missing.push('who is attending');
+      if (!eventDetails.location) missing.push('location');
+      return missing;
+    }
+
+    // Function to get context-aware missing info
+    function getContextualMissingInfo() {
+      const missing = getMissingInfo();
+      const contextualMissing = [];
+
+      for (const item of missing) {
+        if (item === 'time' && eventDetails.date) {
+          contextualMissing.push(`time for ${eventDetails.date}`);
+        } else {
+          contextualMissing.push(item);
+        }
+      }
+
+      return contextualMissing;
+    }
+
+    // Function to parse date and time into a DateTime object
+    function parseDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return null;
+
+      // Use baseDate instead of current time for consistent calculations
+      let targetDate = new Date(baseDate);
+
+      // Parse date
+      const dateLower = dateStr.toLowerCase();
+      if (dateLower === 'today') {
+        targetDate = new Date(baseDate);
+      } else if (dateLower === 'tomorrow') {
+        targetDate = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000);
+      } else if (dateLower.startsWith('next ')) {
+        const day = dateLower.replace('next ', '');
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const targetDay = days.indexOf(day);
+        if (targetDay !== -1) {
+          const currentDay = baseDate.getDay();
+          let daysToAdd = targetDay - currentDay;
+          if (daysToAdd <= 0) daysToAdd += 7;
+          targetDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+          console.log(`Next ${day}: base day ${currentDay}, target day ${targetDay}, days to add ${daysToAdd}`);
+        }
+      } else if (dateLower.startsWith('this ')) {
+        const day = dateLower.replace('this ', '');
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const targetDay = days.indexOf(day);
+        if (targetDay !== -1) {
+          const currentDay = baseDate.getDay();
+          let daysToAdd = targetDay - currentDay;
+          if (daysToAdd < 0) daysToAdd += 7;
+          targetDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+        }
+      } else {
+        // Handle just day names like "monday", "tuesday", etc.
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        if (days.includes(dateLower)) {
+          const targetDay = days.indexOf(dateLower);
+          if (targetDay !== -1) {
+            const currentDay = baseDate.getDay();
+            let daysToAdd = targetDay - currentDay;
+            // If it's the same day or past, schedule for next week
+            if (daysToAdd <= 0) daysToAdd += 7;
+            targetDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+            console.log(`Scheduling for ${dateLower}: base day ${currentDay}, target day ${targetDay}, days to add ${daysToAdd}`);
+          }
+        }
+      }
+
+      // Parse time
+      const timeLower = timeStr.toLowerCase();
+      let hours = 0, minutes = 0;
+
+      // Handle formats like "9 AM", "2:30 PM", "14:30"
+      const timeMatch = timeLower.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1]);
+        minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+
+        if (timeMatch[3]) {
+          const isPM = timeMatch[3] === 'pm';
+          if (isPM && hours !== 12) hours += 12;
+          if (!isPM && hours === 12) hours = 0;
+        }
+      }
+
+      // Set the time on the target date
+      targetDate.setHours(hours, minutes, 0, 0);
+
+      console.log(`Time parsing: "${timeStr}" -> hours: ${hours}, minutes: ${minutes}, final time: ${targetDate.toLocaleString()}`);
+
+      return targetDate;
+    }
+
+    // Function to extract and update event details from user input
+    function updateEventDetails(userInput) {
+      const input = userInput.toLowerCase();
+
+      // Extract date patterns (only if we don't already have a date)
+      if (!eventDetails.date) {
+        const datePatterns = [
+          /(today|tomorrow|next \w+|this \w+)/i,
+          /(\d{1,2}\/\d{1,2}|\d{1,2}-\d{1,2})/,
+          /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+          /(january|february|march|april|may|june|july|august|september|october|november|december)/i
+        ];
+
+        let dateFound = false;
+        for (const pattern of datePatterns) {
+          const match = input.match(pattern);
+          if (match) {
+            eventDetails.date = match[0];
+            dateFound = true;
+            break;
+          }
+        }
+
+        // If no date is mentioned, assume today
+        if (!dateFound) {
+          eventDetails.date = 'today';
+        }
+      }
+
+      // Extract time patterns
+      if (!eventDetails.time) {
+        const timePatterns = [
+          /(\d{1,2}:\d{2}\s*(am|pm))/i,
+          /(\d{1,2}\s*(am|pm))/i,
+          /(\d{1,2}:\d{2})/,
+          /(\d{1,2}\s*o'clock)/i,
+          /^(\d{1,2})$/  // Handle single digits like "9"
+        ];
+
+        for (const pattern of timePatterns) {
+          const match = input.match(pattern);
+          if (match) {
+            eventDetails.time = match[0];
+            console.log(`Time extracted: "${match[0]}" from input "${userInput}"`);
+            break;
+          }
+        }
+      }
+
+      // If we have a date but no time, and the input looks like just a time, extract it
+      if (eventDetails.date && !eventDetails.time) {
+        const timeOnlyPatterns = [
+          /^(\d{1,2}:\d{2}\s*(am|pm))$/i,
+          /^(\d{1,2}\s*(am|pm))$/i,
+          /^(\d{1,2}:\d{2})$/,
+          /^(\d{1,2}\s*o'clock)$/i,
+          /^(\d{1,2})$/  // Handle single digits like "9"
+        ];
+
+        for (const pattern of timeOnlyPatterns) {
+          const match = input.match(pattern);
+          if (match) {
+            eventDetails.time = match[0];
+            console.log(`Time-only extracted: "${match[0]}" from input "${userInput}"`);
+            break;
+          }
+        }
+      }
+
+      // Extract attendees
+      if (!eventDetails.attendees) {
+        const attendeePatterns = [
+          /(myself|me|i|alone)/i,
+          /(mom|mother|dad|father|brother|sister|family)/i,
+          /(friend|friends|colleague|colleagues|team)/i,
+          /(just\s+\w+)/i
+        ];
+
+        for (const pattern of attendeePatterns) {
+          const match = input.match(pattern);
+          if (match) {
+            eventDetails.attendees = match[0];
+            break;
+          }
+        }
+      }
+
+      // Extract location
+      if (!eventDetails.location) {
+        const locationPatterns = [
+          /(at|in|to)\s+(\w+)/i,
+          /(bank|home|office|school|hospital|restaurant|cafe|store|mall|park|gym|library|church|airport)/i,
+          /(the\s+\w+)/i
+        ];
+
+        for (const pattern of locationPatterns) {
+          const match = input.match(pattern);
+          if (match) {
+            eventDetails.location = match[0];
+            break;
+          }
+        }
+      }
+    }
+
+         const authBtn = document.getElementById('authorize_button');
+     const signOutBtn = document.getElementById('signout_button');
+     const inputBox = document.getElementById('inputBox');
+     const msg = document.getElementById('message');
+     const darkToggle = document.getElementById('darkToggle');
+     const voiceButton = document.getElementById('voiceButton');
+
+     // Voice recognition setup
+     let recognition = null;
+     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+       recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+       recognition.continuous = false;
+       recognition.interimResults = false;
+       recognition.lang = 'en-US';
+
+       recognition.onstart = () => {
+         voiceButton.classList.add('recording');
+         voiceButton.textContent = '🔴';
+       };
+
+       recognition.onresult = (event) => {
+         const transcript = event.results[0][0].transcript;
+         inputBox.value = transcript;
+         // Trigger the input event to process the voice input
+         inputBox.dispatchEvent(new Event('input'));
+       };
+
+       recognition.onend = () => {
+         voiceButton.classList.remove('recording');
+         voiceButton.textContent = '🎤';
+       };
+
+       recognition.onerror = (event) => {
+         console.error('Speech recognition error:', event.error);
+         voiceButton.classList.remove('recording');
+         voiceButton.textContent = '🎤';
+       };
+     }
 
     darkToggle.onclick = () => document.body.classList.toggle('dark');
-
-    let conversationState = {
-      activity: null,
-      time: null,
-      date: null,
-      person: null,
-      inviteEmail: null,
-      askedEmail: false,
-      confirmedNoInvite: false
-    };
 
     function gapiLoaded() {
       gapi.load('client', async () => {
@@ -169,7 +420,7 @@
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
-        callback: '',
+        callback: ''
       });
       gisInited = true;
       enableAuth();
@@ -179,93 +430,174 @@
       if (gapiInited && gisInited) authBtn.style.display = 'inline-block';
     }
 
-    authBtn.onclick = () => {
-      tokenClient.callback = (resp) => {
-        if (resp.error) return msg.textContent = 'Auth error: ' + resp.error;
-        accessToken = resp.access_token;
-        msg.textContent = '✅ Authorized! Type your plan.';
-        inputBox.disabled = false;
-        authBtn.style.display = 'none';
-        signOutBtn.style.display = 'inline-block';
-      };
-      tokenClient.requestAccessToken();
-    };
+         // Voice button click handler
+     voiceButton.onclick = () => {
+       if (recognition && !inputBox.disabled) {
+         recognition.start();
+       }
+     };
 
-    signOutBtn.onclick = () => {
-      google.accounts.oauth2.revoke(accessToken);
-      accessToken = null;
-      inputBox.value = '';
-      inputBox.disabled = true;
-      msg.textContent = 'Signed out.';
-      authBtn.style.display = 'inline-block';
-      signOutBtn.style.display = 'none';
-      resetConversation();
-    };
+     authBtn.onclick = () => {
+       tokenClient.callback = (resp) => {
+         if (resp.error) return msg.textContent = 'Auth error: ' + resp.error;
+         accessToken = resp.access_token;
+         msg.textContent = '✅ Authorized! Type your plan.';
+         inputBox.disabled = false;
+         voiceButton.disabled = false;
+         authBtn.style.display = 'none';
+         signOutBtn.style.display = 'inline-block';
+       };
+       tokenClient.requestAccessToken();
+     };
 
-    function resetConversation() {
-      conversationState = {
-        activity: null,
-        time: null,
-        date: null,
-        person: null,
-        inviteEmail: null,
-        askedEmail: false,
-        confirmedNoInvite: false
-      };
-    }
+         signOutBtn.onclick = () => {
+       google.accounts.oauth2.revoke(accessToken);
+       accessToken = null;
+       inputBox.value = '';
+       inputBox.disabled = true;
+       voiceButton.disabled = true;
+       msg.textContent = 'Signed out.';
+       authBtn.style.display = 'inline-block';
+       signOutBtn.style.display = 'none';
+     };
 
-    async function sendToLLM(text) {
-      const messages = [
-        { role: "system", content: "You help schedule events. Extract date, time, activity, and people mentioned." },
-        { role: "user", content: text }
-      ];
+        async function sendToLLM(text, isFinal = false) {
+      chatHistory.push({ role: "user", content: text });
+
+      // Get current date and time for the prompt
+      const currentDateTime = new Date().toLocaleString();
+
+      let systemPrompt = isFinal
+        ? "Based on this conversation, create a calendar event. Return a JSON object with this format: {\"summary\": \"Event title\", \"dateTime\": \"2025-08-01T14:00:00Z\"}. Use ISO 8601 format and UTC time. Combine the date and time information to create the dateTime field."
+        : `You are a helpful assistant that helps users schedule events. You need to gather 4 specific pieces of information: 1) Date/Day of the event, 2) Time of the event (e.g., 9 AM, 2:30 PM), 3) Who is attending (e.g., myself, mom, brother, me), and 4) Location/Where the event will be (e.g., bank, home, office).
+
+Current date and time: {{CURRENT_DATETIME}}
+
+Note: If no specific date is mentioned, assume the event is for today. When a user provides just a time (like "9 AM" or "11 PM"), apply it to the previously established date.
+
+Current information gathered:
+- Date: ${eventDetails.date || 'Not provided yet'}
+- Time: ${eventDetails.time || 'Not provided yet'}
+- Attendees: ${eventDetails.attendees || 'Not provided yet'}
+- Location: ${eventDetails.location || 'Not provided yet'}
+
+Still need: ${getContextualMissingInfo().join(', ')}
+
+Ask one question at a time to gather the missing details. Be friendly and conversational. If the user provides multiple pieces of information in one response, acknowledge what you got and ask for the remaining details. When asking for time, remind the user of the date context if it's already established.`;
+
+      // Replace the placeholder with actual current date and time
+      systemPrompt = systemPrompt.replace('{{CURRENT_DATETIME}}', currentDateTime);
 
       const body = {
         model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        messages,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          ...chatHistory
+        ],
         max_tokens: 300,
         temperature: 0.7
       };
 
-      const response = await fetch("https://api.together.xyz/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${TOGETHER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
+      try {
+        if (!validateApiKey(TOGETHER_API_KEY)) {
+          throw new Error('Invalid API key configuration');
+        }
 
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || "I couldn't understand that.";
-    }
-
-    async function createEvent(summary, dateTime, attendees = []) {
-      const endDate = new Date(dateTime.getTime() + 60 * 60 * 1000);
-      const event = {
-        summary,
-        start: { dateTime: dateTime.toISOString(), timeZone: 'UTC' },
-        end: { dateTime: endDate.toISOString(), timeZone: 'UTC' },
-        attendees: attendees.map(email => ({ email }))
-      };
-      const res = await gapi.client.calendar.events.insert({
-        calendarId: 'primary',
-        resource: event
-      });
-      return res.result.htmlLink;
-    }
-
-    function tryAutoSchedule() {
-      const { activity, time, date, person, inviteEmail, confirmedNoInvite } = conversationState;
-
-      if (activity && time && date && (!person || inviteEmail || confirmedNoInvite)) {
-        const dateTime = new Date(`${date}T${time}`);
-        const attendees = inviteEmail ? [inviteEmail] : [];
-
-        createEvent(activity, dateTime, attendees).then(link => {
-          msg.innerHTML = `📅 Event created! <a href="${link}" target="_blank">View in Calendar</a>`;
-          resetConversation();
+        const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${TOGETHER_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
         });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(`API error: ${data.error.message || 'Unknown error'}`);
+        }
+
+        const reply = data.choices?.[0]?.message?.content || "I couldn't understand that.";
+        chatHistory.push({ role: "assistant", content: reply });
+        return reply;
+      } catch (error) {
+        console.error('LLM API error:', error);
+        const errorMessage = "Sorry, I'm having trouble processing your request. Please try again.";
+        chatHistory.push({ role: "assistant", content: errorMessage });
+        return errorMessage;
+      }
+    }
+
+    async function createEvent(summary, dateTime) {
+      try {
+        const endDate = new Date(dateTime.getTime() + 60 * 60 * 1000);
+        const event = {
+          summary,
+          start: { dateTime: dateTime.toISOString(), timeZone: 'UTC' },
+          end: { dateTime: endDate.toISOString(), timeZone: 'UTC' }
+        };
+        const res = await gapi.client.calendar.events.insert({
+          calendarId: 'primary',
+          resource: event
+        });
+        return res.result.htmlLink;
+      } catch (error) {
+        console.error('Calendar API error:', error);
+        throw new Error('Failed to create calendar event. Please check your permissions and try again.');
+      }
+    }
+
+    async function createEventFromDetails() {
+      try {
+        // Create a summary from the gathered details
+        const summary = `Event - ${eventDetails.attendees} at ${eventDetails.location}`;
+
+        // Parse date and time to create a proper DateTime
+        const dateTime = parseDateTime(eventDetails.date, eventDetails.time);
+
+        if (!dateTime) {
+          throw new Error('Could not parse the date and time information');
+        }
+
+        // Debug logging
+        console.log('Base date for session:', baseDate.toLocaleString());
+        console.log('Event details:', eventDetails);
+        console.log('Parsed dateTime:', dateTime);
+        console.log('Current real time:', new Date());
+
+        // Validate that the date is in the future relative to base date (with some tolerance)
+        const timeDiff = dateTime.getTime() - baseDate.getTime();
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+        if (hoursDiff < -1) { // Allow 1 hour tolerance for past events
+          throw new Error(`Event date must be in the future. The specified time (${dateTime.toLocaleString()}) is in the past relative to the session start time (${baseDate.toLocaleString()}).`);
+        }
+
+        const eventLink = await createEvent(summary, dateTime);
+        msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${summary}</a>`;
+
+        // Reset for next event
+        questionCount = 0;
+        chatHistory = [];
+        eventDetails = { date: null, time: null, attendees: null, location: null };
+        // Reset base date for new session
+        baseDate = new Date();
+        console.log('New session started with base date:', baseDate.toLocaleString());
+
+      } catch (error) {
+        console.error('Event creation error:', error);
+        msg.textContent = `⚠️ ${error.message}`;
+        questionCount = 0;
+        chatHistory = [];
+        eventDetails = { date: null, time: null, attendees: null, location: null };
       }
     }
 
@@ -275,103 +607,105 @@
       if (!text) return;
 
       msg.textContent = '🤖 Thinking...';
+      inputBox.value = '';
       inputBox.disabled = true;
+      questionCount++;
 
-      // Handle email for invite
-      if (conversationState.person && conversationState.askedEmail && !conversationState.inviteEmail && !conversationState.confirmedNoInvite) {
-        if (text.toLowerCase().includes("no")) {
-          conversationState.confirmedNoInvite = true;
-          msg.textContent = 'Okay, not inviting anyone.';
-        } else if (text.includes("@")) {
-          conversationState.inviteEmail = text.trim();
-          msg.textContent = 'Got the email!';
-        } else {
-          msg.textContent = 'Please enter a valid email or say no.';
-        }
-        inputBox.value = '';
-        inputBox.disabled = false;
-        tryAutoSchedule();
+      // Update event details with user input
+      updateEventDetails(text);
+
+      // Debug logging
+      console.log('After updateEventDetails:', eventDetails);
+      console.log('Has all info:', eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location);
+
+      // Check if we have all required information
+      const hasAllInfo = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
+      const isFinal = questionCount >= 6; // Fallback to prevent infinite loops
+
+      // If we have all info, create event directly without asking AI
+      if (hasAllInfo) {
+        msg.textContent = '🎯 All information gathered! Creating your event...';
+        await createEventFromDetails();
         return;
       }
 
-      const reply = await sendToLLM(text);
+      const reply = await sendToLLM(text, isFinal);
 
-      // Extract info with simple regex (for demo — you can improve)
-      if (!conversationState.time) {
-        const timeMatch = text.match(/\b\d{1,2}(:\d{2})?\s*(AM|PM|am|pm)?\b/);
-        if (timeMatch) conversationState.time = convertTo24Hour(timeMatch[0]);
-      }
+      if (isFinal) {
+        try {
+          const jsonMatch = reply.match(/{[^}]+}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const { summary, dateTime } = parsed;
 
-      if (!conversationState.date) {
-        const today = new Date();
-        if (text.toLowerCase().includes("tomorrow")) {
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          conversationState.date = tomorrow.toISOString().split("T")[0];
-        } else if (text.toLowerCase().includes("today")) {
-          conversationState.date = today.toISOString().split("T")[0];
-        } else {
-          const dateMatch = text.match(/\b\d{4}-\d{2}-\d{2}\b/);
-          if (dateMatch) conversationState.date = dateMatch[0];
+            // Validate date string
+            const eventDate = new Date(dateTime);
+            if (isNaN(eventDate.getTime())) {
+              throw new Error('Invalid date format received from AI');
+            }
+
+            // Check if date is in the future relative to base date (with tolerance)
+            const timeDiff = eventDate.getTime() - baseDate.getTime();
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+            if (hoursDiff < -1) { // Allow 1 hour tolerance for past events
+              throw new Error(`Event date must be in the future. The specified time (${eventDate.toLocaleString()}) is in the past relative to the session start time (${baseDate.toLocaleString()}).`);
+            }
+
+            // Create a comprehensive event summary
+            const eventSummary = `${summary} - ${eventDetails.attendees ? `with ${eventDetails.attendees}` : ''} ${eventDetails.location ? `at ${eventDetails.location}` : ''}`.trim();
+
+            const eventLink = await createEvent(eventSummary, eventDate);
+            msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${eventSummary}</a>`;
+            questionCount = 0;
+            chatHistory = [];
+            eventDetails = { date: null, time: null, attendees: null, location: null };
+            // Reset base date for new session
+            baseDate = new Date();
+            console.log('New session started with base date:', baseDate.toLocaleString());
+            return;
+          } else {
+            throw new Error('No valid JSON found in response');
+          }
+        } catch (err) {
+          console.error('Event creation error:', err);
+          msg.textContent = `⚠️ ${err.message || "I couldn't understand the schedule details. Please try again."}`;
+          questionCount = 0;
+          chatHistory = [];
+          eventDetails = { date: null, time: null, attendees: null, location: null };
+          // Reset base date for new session
+          baseDate = new Date();
         }
-      }
+      } else {
+        // Check again if we now have all info after AI response
+        const hasAllInfoAfterAI = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
 
-      if (!conversationState.activity) {
-        conversationState.activity = text;
-      }
-
-      if (!conversationState.person) {
-        if (/my (mom|dad|sister|brother|friend)/i.test(text)) {
-          conversationState.person = RegExp.$1;
-          msg.textContent = `Do you want to invite your ${conversationState.person}? If yes, please enter their email.`;
-          conversationState.askedEmail = true;
-          inputBox.value = '';
-          inputBox.disabled = false;
+        if (hasAllInfoAfterAI) {
+          msg.textContent = '🎯 All information gathered! Creating your event...';
+          await createEventFromDetails();
           return;
         }
+
+        // Show progress indicator and gathered info
+        const progressInfo = `<br><br><small>📋 Progress: ${4 - getMissingInfo().length}/4 details gathered</small>`;
+
+        const gatheredInfo = eventDetails.date || eventDetails.time || eventDetails.attendees || eventDetails.location
+          ? `<br><small>✅ Gathered: ${[eventDetails.date, eventDetails.time, eventDetails.attendees, eventDetails.location].filter(Boolean).join(', ')}</small>`
+          : '';
+
+        msg.innerHTML = `<strong>🤖 Assistant:</strong><br>${reply.replace(/\n/g, '<br>')}${progressInfo}${gatheredInfo}`;
       }
 
-      msg.innerHTML = `<strong>🤖 Assistant:</strong><br>${reply.replace(/\n/g, '<br>')}`;
-      inputBox.value = '';
+      // Re-enable input box after processing
       inputBox.disabled = false;
-
-      tryAutoSchedule();
     });
-
-    function convertTo24Hour(timeStr) {
-      let [hour, min] = timeStr.split(/[: ]/);
-      min = min || "00";
-      const ampm = timeStr.toLowerCase().includes("pm") ? "PM" : "AM";
-
-      hour = parseInt(hour);
-      if (ampm === "PM" && hour < 12) hour += 12;
-      if (ampm === "AM" && hour === 12) hour = 0;
-
-      return `${hour.toString().padStart(2, '0')}:${min}`;
-    }
-
-    speechBtn.onclick = () => {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.start();
-      msg.textContent = "🎙️ Listening...";
-
-      recognition.onresult = async (event) => {
-        inputBox.value = event.results[0][0].transcript;
-        inputBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-      };
-
-      recognition.onerror = (event) => {
-        msg.textContent = '❌ Speech error: ' + event.error;
-      };
-    };
 
     window.onload = () => {
       gapiLoaded();
       gisLoaded();
+      // Set base date for the session
+      baseDate = new Date();
+      console.log('Session started with base date:', baseDate.toLocaleString());
     };
 </script>
 </body>
