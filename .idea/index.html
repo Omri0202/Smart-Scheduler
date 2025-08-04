@@ -149,7 +149,8 @@ body.dark #cornerText, body.dark #darkToggle {
       date: null,
       time: null,
       attendees: null,
-      location: null
+      location: null,
+      attendeeEmails: []
     };
 
     // Validate API key format
@@ -331,20 +332,45 @@ body.dark #cornerText, body.dark #darkToggle {
         }
       }
 
-      // Extract attendees
+      // Extract attendees - prioritize patterns that include other people
       if (!eventDetails.attendees) {
-        const attendeePatterns = [
-          /(myself|me|i|alone)/i,
+        // First check for patterns that include other people
+        const otherPeoplePatterns = [
+          /(with\s+my\s+\w+)/i,  // "with my mom", "with my dad"
+          /(and\s+my\s+\w+)/i,   // "and my mom"
+          /(me\s+and\s+\w+)/i,   // "me and mom"
+          /(\w+\s+and\s+me)/i,   // "mom and me"
           /(mom|mother|dad|father|brother|sister|family)/i,
           /(friend|friends|colleague|colleagues|team)/i,
+          /(spouse|wife|husband|girlfriend|boyfriend|partner)/i,
+          /(boss|manager|client|doctor|teacher)/i
+        ];
+        
+        // Then check for solo patterns
+        const soloPatterns = [
+          /(myself|me|i|alone)/i,
           /(just\s+\w+)/i
         ];
 
-        for (const pattern of attendeePatterns) {
+        // Try other people patterns first
+        for (const pattern of otherPeoplePatterns) {
           const match = input.match(pattern);
           if (match) {
             eventDetails.attendees = match[0];
+            console.log(`Attendees extracted (with others): "${match[0]}"`);
             break;
+          }
+        }
+        
+        // If no other people found, try solo patterns
+        if (!eventDetails.attendees) {
+          for (const pattern of soloPatterns) {
+            const match = input.match(pattern);
+            if (match) {
+              eventDetails.attendees = match[0];
+              console.log(`Attendees extracted (solo): "${match[0]}"`);
+              break;
+            }
           }
         }
       }
@@ -365,6 +391,57 @@ body.dark #cornerText, body.dark #darkToggle {
           }
         }
       }
+
+      // Extract email addresses for invitations
+      const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const emailMatches = userInput.match(emailPattern);
+      if (emailMatches) {
+        emailMatches.forEach(email => {
+          if (!eventDetails.attendeeEmails.includes(email)) {
+            eventDetails.attendeeEmails.push(email);
+            console.log(`Email added for invitation: ${email}`);
+          }
+        });
+      }
+
+      // Handle "no" responses to email requests
+      if (input.includes('no') && input.length < 10) {
+        console.log('User declined to provide email addresses');
+      }
+    }
+
+    // Function to check if other people are mentioned in attendees
+    function requiresEmailInvitation() {
+      if (!eventDetails.attendees) {
+        console.log('requiresEmailInvitation: No attendees found');
+        return false;
+      }
+      
+      const attendeesLower = eventDetails.attendees.toLowerCase();
+      console.log(`requiresEmailInvitation: Checking attendees: "${eventDetails.attendees}"`);
+      
+      const otherPeopleKeywords = [
+        'mom', 'mother', 'dad', 'father', 'brother', 'sister', 
+        'friend', 'colleague', 'team', 'family', 'spouse', 
+        'wife', 'husband', 'girlfriend', 'boyfriend', 'partner',
+        'boss', 'manager', 'client', 'doctor', 'teacher'
+      ];
+      
+      // Check if any keywords for other people are mentioned
+      const mentionsOthers = otherPeopleKeywords.some(keyword => 
+        attendeesLower.includes(keyword)
+      );
+      
+      // Don't require email if it's just the user
+      const justUser = attendeesLower.includes('myself') || 
+                      attendeesLower.includes('me') || 
+                      attendeesLower.includes('alone') ||
+                      attendeesLower === 'i';
+      
+      const result = mentionsOthers && !justUser;
+      console.log(`requiresEmailInvitation: mentionsOthers=${mentionsOthers}, justUser=${justUser}, result=${result}`);
+      
+      return result;
     }
 
          const authBtn = document.getElementById('authorize_button');
@@ -475,11 +552,14 @@ Current date and time: {{CURRENT_DATETIME}}
 
 Note: If no specific date is mentioned, assume the event is for today. When a user provides just a time (like "9 AM" or "11 PM"), apply it to the previously established date.
 
+IMPORTANT: If the user mentions other people (like dad, mom, friend, brother, sister, etc.) in the attendees, ask for their Gmail address so you can invite them to the event. Say something like "Would you like me to invite [person] to this event? If so, please provide their Gmail address, or say 'no' to schedule the event just for you."
+
 Current information gathered:
 - Date: ${eventDetails.date || 'Not provided yet'}
 - Time: ${eventDetails.time || 'Not provided yet'}
 - Attendees: ${eventDetails.attendees || 'Not provided yet'}
 - Location: ${eventDetails.location || 'Not provided yet'}
+- Attendee Emails: ${eventDetails.attendeeEmails.length > 0 ? eventDetails.attendeeEmails.join(', ') : 'None collected yet'}
 
 Still need: ${getContextualMissingInfo().join(', ')}
 
@@ -536,7 +616,7 @@ Ask one question at a time to gather the missing details. Be friendly and conver
       }
     }
 
-    async function createEvent(summary, dateTime) {
+    async function createEvent(summary, dateTime, attendeeEmails = []) {
       try {
         const endDate = new Date(dateTime.getTime() + 60 * 60 * 1000);
         const event = {
@@ -544,6 +624,12 @@ Ask one question at a time to gather the missing details. Be friendly and conver
           start: { dateTime: dateTime.toISOString(), timeZone: 'UTC' },
           end: { dateTime: endDate.toISOString(), timeZone: 'UTC' }
         };
+        
+        // Add attendees if emails are provided
+        if (attendeeEmails && attendeeEmails.length > 0) {
+          event.attendees = attendeeEmails.map(email => ({ email: email.trim() }));
+        }
+        
         const res = await gapi.client.calendar.events.insert({
           calendarId: 'primary',
           resource: event
@@ -581,13 +667,14 @@ Ask one question at a time to gather the missing details. Be friendly and conver
           throw new Error(`Event date must be in the future. The specified time (${dateTime.toLocaleString()}) is in the past relative to the session start time (${baseDate.toLocaleString()}).`);
         }
 
-        const eventLink = await createEvent(summary, dateTime);
-        msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${summary}</a>`;
+        const eventLink = await createEvent(summary, dateTime, eventDetails.attendeeEmails);
+        const inviteInfo = eventDetails.attendeeEmails.length > 0 ? ` (Invites sent to: ${eventDetails.attendeeEmails.join(', ')})` : '';
+        msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${summary}</a>${inviteInfo}`;
 
         // Reset for next event
         questionCount = 0;
         chatHistory = [];
-        eventDetails = { date: null, time: null, attendees: null, location: null };
+        eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
         // Reset base date for new session
         baseDate = new Date();
         console.log('New session started with base date:', baseDate.toLocaleString());
@@ -597,7 +684,7 @@ Ask one question at a time to gather the missing details. Be friendly and conver
         msg.textContent = `⚠️ ${error.message}`;
         questionCount = 0;
         chatHistory = [];
-        eventDetails = { date: null, time: null, attendees: null, location: null };
+        eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
       }
     }
 
@@ -619,11 +706,23 @@ Ask one question at a time to gather the missing details. Be friendly and conver
       console.log('Has all info:', eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location);
 
       // Check if we have all required information
-      const hasAllInfo = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
+      const hasBasicInfo = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
+      const needsEmailInvitation = requiresEmailInvitation();
+      const hasEmailsWhenNeeded = !needsEmailInvitation || eventDetails.attendeeEmails.length > 0;
+      const hasAllInfo = hasBasicInfo && hasEmailsWhenNeeded;
       const isFinal = questionCount >= 6; // Fallback to prevent infinite loops
 
-      // If we have all info, create event directly without asking AI
-      if (hasAllInfo) {
+      console.log(`Event processing: hasBasicInfo=${hasBasicInfo}, needsEmailInvitation=${needsEmailInvitation}, hasEmailsWhenNeeded=${hasEmailsWhenNeeded}, hasAllInfo=${hasAllInfo}`);
+      console.log(`Current eventDetails:`, eventDetails);
+
+      // If we have all basic info but need emails, ask for them via AI
+      if (hasBasicInfo && needsEmailInvitation && eventDetails.attendeeEmails.length === 0) {
+        console.log('All basic info gathered, but need email for invitation - continuing to AI');
+        // Continue to AI to ask for email
+      }
+      // If we have all info including emails (when needed), create event directly
+      else if (hasAllInfo) {
+        console.log('All information complete - creating event directly');
         msg.textContent = '🎯 All information gathered! Creating your event...';
         await createEventFromDetails();
         return;
@@ -655,11 +754,12 @@ Ask one question at a time to gather the missing details. Be friendly and conver
             // Create a comprehensive event summary
             const eventSummary = `${summary} - ${eventDetails.attendees ? `with ${eventDetails.attendees}` : ''} ${eventDetails.location ? `at ${eventDetails.location}` : ''}`.trim();
 
-            const eventLink = await createEvent(eventSummary, eventDate);
-            msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${eventSummary}</a>`;
+            const eventLink = await createEvent(eventSummary, eventDate, eventDetails.attendeeEmails);
+            const inviteInfo = eventDetails.attendeeEmails.length > 0 ? ` (Invites sent to: ${eventDetails.attendeeEmails.join(', ')})` : '';
+            msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${eventSummary}</a>${inviteInfo}`;
             questionCount = 0;
             chatHistory = [];
-            eventDetails = { date: null, time: null, attendees: null, location: null };
+            eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
             // Reset base date for new session
             baseDate = new Date();
             console.log('New session started with base date:', baseDate.toLocaleString());
@@ -672,13 +772,16 @@ Ask one question at a time to gather the missing details. Be friendly and conver
           msg.textContent = `⚠️ ${err.message || "I couldn't understand the schedule details. Please try again."}`;
           questionCount = 0;
           chatHistory = [];
-          eventDetails = { date: null, time: null, attendees: null, location: null };
+          eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
           // Reset base date for new session
           baseDate = new Date();
         }
       } else {
         // Check again if we now have all info after AI response
-        const hasAllInfoAfterAI = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
+        const hasBasicInfoAfterAI = eventDetails.date && eventDetails.time && eventDetails.attendees && eventDetails.location;
+        const needsEmailAfterAI = requiresEmailInvitation();
+        const hasEmailsWhenNeededAfterAI = !needsEmailAfterAI || eventDetails.attendeeEmails.length > 0;
+        const hasAllInfoAfterAI = hasBasicInfoAfterAI && hasEmailsWhenNeededAfterAI;
 
         if (hasAllInfoAfterAI) {
           msg.textContent = '🎯 All information gathered! Creating your event...';
