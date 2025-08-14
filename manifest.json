@@ -1,0 +1,19 @@
+{
+  "name": "Smart Scheduler",
+  "short_name": "SmartScheduler",
+  "description": "AI-powered smart scheduling app with Gmail invitations",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait",
+  "icons": [],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    }
+  ]
+}
