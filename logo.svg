@@ -1,0 +1,49 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#bg-gradient)"/>
+  
+  <!-- Calendar icon -->
+  <g transform="translate(64, 48)">
+    <!-- Calendar body -->
+    <rect x="8" y="32" width="112" height="96" rx="8" fill="url(#icon-gradient)"/>
+    
+    <!-- Calendar header -->
+    <rect x="8" y="32" width="112" height="24" rx="8" fill="url(#icon-gradient)" opacity="0.9"/>
+    
+    <!-- Calendar binding rings -->
+    <rect x="32" y="16" width="8" height="32" rx="4" fill="url(#icon-gradient)"/>
+    <rect x="88" y="16" width="8" height="32" rx="4" fill="url(#icon-gradient)"/>
+    
+    <!-- Calendar grid lines -->
+    <line x1="24" y1="72" x2="104" y2="72" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    <line x1="24" y1="88" x2="104" y2="88" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    <line x1="24" y1="104" x2="104" y2="104" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    
+    <line x1="40" y1="56" x2="40" y2="120" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    <line x1="64" y1="56" x2="64" y2="120" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    <line x1="88" y1="56" x2="88" y2="120" stroke="#6366f1" stroke-width="2" opacity="0.3"/>
+    
+    <!-- Smart indicator dots -->
+    <circle cx="32" cy="80" r="4" fill="#6366f1"/>
+    <circle cx="72" cy="96" r="4" fill="#4f46e5"/>
+    <circle cx="96" cy="112" r="4" fill="#818cf8"/>
+  </g>
+  
+  <!-- AI/Smart indicator -->
+  <g transform="translate(160, 160)">
+    <circle cx="24" cy="24" r="20" fill="url(#icon-gradient)" opacity="0.9"/>
+    <path d="M16 20 L20 24 L32 16" stroke="#6366f1" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
