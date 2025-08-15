@@ -1954,10 +1954,10 @@
     </div>
 
 <script>
-    const CLIENT_ID = '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com';
-    // SECURITY WARNING: API keys should not be exposed in client-side code
-    // In production, this should be handled by a backend server
-    const TOGETHER_API_KEY = '1e60c638e6c99899e27a3bec16b056dfd8fc1e5cace56a9c09e3a324f0de8f39';
+    // Note: These should be loaded from environment variables in production
+    // For now, using CONFIG from config.js which handles environment variables
+    const CLIENT_ID = window.CONFIG?.GOOGLE?.CLIENT_ID || 'CLIENT_ID_NOT_CONFIGURED';
+    const TOGETHER_API_KEY = window.CONFIG?.TOGETHER_API?.KEY || 'API_KEY_NOT_CONFIGURED';
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
     const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
@@ -2993,7 +2993,7 @@ Respond with ONE short, direct question to get the missing information.`;
           gapi.client.init({
             apiKey: '', // Not needed for OAuth flows
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-            clientId: '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com',
+            clientId: CLIENT_ID,
             scope: 'https://www.googleapis.com/auth/calendar',
           }).then(function() {
             console.log('Google API client initialized successfully');

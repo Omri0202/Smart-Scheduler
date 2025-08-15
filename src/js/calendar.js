@@ -12,7 +12,7 @@ const calendar = {
      */
     init() {
         utils.logger.log('Calendar module initialized');
-    };
+    },
     
     /**
      * Create a new calendar event

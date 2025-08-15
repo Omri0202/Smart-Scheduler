@@ -2,7 +2,7 @@
   "name": "Smart Scheduler",
   "short_name": "SmartScheduler",
   "description": "AI-powered smart scheduling app with Gmail invitations",
-  "start_url": "./app.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#6366f1",

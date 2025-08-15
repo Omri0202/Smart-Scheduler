@@ -1,23 +1,29 @@
 // API Configuration
 const CONFIG = {
-    // Google OAuth Configuration
+    // Google OAuth Configuration  
     GOOGLE: {
-        CLIENT_ID: '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com',
-        SCOPES: 'https://www.googleapis.com/auth/calendar',
-        DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
+        CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || (() => {
+            console.error('VITE_GOOGLE_CLIENT_ID not configured');
+            return 'GOOGLE_CLIENT_ID_NOT_CONFIGURED';
+        })(),
+        SCOPES: import.meta.env.VITE_GOOGLE_SCOPES || 'https://www.googleapis.com/auth/calendar',
+        DISCOVERY_DOCS: [import.meta.env.VITE_GOOGLE_DISCOVERY_DOCS || 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
     },
     
     // Together API Configuration
     TOGETHER_API: {
-        KEY: '1e60c638e6c99899e27a3bec16b056dfd8fc1e5cace56a9c09e3a324f0de8f39',
-        ENDPOINT: 'https://api.together.xyz/v1/chat/completions'
+        KEY: import.meta.env.VITE_TOGETHER_API_KEY || (() => {
+            console.error('VITE_TOGETHER_API_KEY not configured');
+            return 'TOGETHER_API_KEY_NOT_CONFIGURED';
+        })(),
+        ENDPOINT: import.meta.env.VITE_TOGETHER_API_ENDPOINT || 'https://api.together.xyz/v1/chat/completions'
     },
     
     // App Settings
     APP: {
-        NAME: 'Smart Scheduler',
-        VERSION: '1.0.0',
-        DEBUG: true
+        NAME: import.meta.env.VITE_APP_NAME || 'Smart Scheduler',
+        VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
+        DEBUG: import.meta.env.VITE_DEBUG_MODE === 'true' || false
     },
     
     // Default Event Settings

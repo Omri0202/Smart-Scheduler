@@ -4,11 +4,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode development",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check-env": "node scripts/check-env.js"
   },
   "devDependencies": {
-    "vite": "^5.0.0"
+    "dotenv": "^16.6.1",
+    "vite": "^7.1.2"
   }
 }
