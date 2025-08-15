@@ -2,46 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Scheduler</title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- CSS Files -->
-    <link rel="stylesheet" href="src/styles/main.css">
+    <link rel="stylesheet" href="src/css/styles.css">
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6366f1">
+    <link rel="icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     
-    <!-- Google API -->
-    <script src="https://apis.google.com/js/api.js" defer></script>
-    <script src="https://accounts.google.com/gsi/client" defer></script>
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self' https:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.googleapis.com https://*.gstatic.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
+      font-src 'self' https: data:;
+      img-src 'self' data: https:;
+      connect-src 'self' https:;
+      frame-src 'self' https://*.google.com https://*.googleapis.com;
+      media-src *;
+    ">
 </head>
 <body>
-    <!-- Floating Particles Background -->
-    <div class="floating-particles" id="particles"></div>
-    
-    <!-- Welcome Screen -->
-    <div id="welcomeContainer" class="welcome-container">
-        <div class="welcome-card">
-            <img src="logo.svg" alt="Smart Scheduler" class="app-logo">
-            <h1>Smart Scheduler</h1>
-            <p>Your intelligent scheduling assistant powered by AI</p>
-            <button id="getStartedBtn" class="primary-button">Get Started</button>
-        </div>
-    </div>
-    
     <!-- Login Container -->
-    <div id="loginContainer" class="login-container" style="display: none;">
+    <div id="loginContainer" class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <img src="logo.svg" alt="Smart Scheduler" class="login-logo">
+                <img src="logo.svg" alt="Smart Scheduler" class="login-logo" />
                 <h1>Smart Scheduler</h1>
                 <p>Your intelligent scheduling assistant</p>
             </div>
@@ -50,9 +45,11 @@
                 <h2>Welcome Back</h2>
                 <p class="login-subtitle">Sign in to access your schedule and manage events</p>
                 
+                <div id="errorContainer" class="error-message" style="display: none;"></div>
+                
                 <div class="login-options">
-                    <button id="googleSignInBtn" class="google-signin-btn">
-                        <img src="https://www.google.com/favicon.ico" alt="Google" class="provider-icon">
+                    <button id="googleSignInBtn" class="google-signin-btn" disabled>
+                        <img src="https://www.google.com/favicon.ico" alt="Google" class="provider-icon" />
                         <span>Continue with Google</span>
                     </button>
                     
@@ -60,839 +57,477 @@
                         <span>or</span>
                     </div>
                     
-                    <div class="email-signin">
+                    <form id="emailSignInForm" class="email-signin">
                         <div class="form-group">
                             <label for="email">Email</label>
-                            <input type="email" id="email" placeholder="Enter your email" class="form-input">
+                            <input type="email" id="email" name="email" placeholder="Enter your email" class="form-input" required />
                         </div>
                         
                         <div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" placeholder="Enter your password" class="form-input">
+                            <input type="password" id="password" name="password" placeholder="Enter your password" class="form-input" required />
                             <a href="#" class="forgot-password">Forgot password?</a>
                         </div>
                         
-                        <button id="emailSignInBtn" class="primary-button">Sign In</button>
-                    </div>
+                        <button type="submit" class="btn btn-primary">Sign In</button>
+                    </form>
                 </div>
                 
-                <div class="login-footer">
-                    <p>Don't have an account? <a href="#" id="signUpLink">Sign up</a></p>
-                    <button id="testButton" class="demo-button">Try Demo Mode</button>
-                </div>
-            </div>
-            
-            <div class="login-features">
-                <h3>Smart Scheduling Made Easy</h3>
-                <ul class="feature-list">
-                    <li><i class="fas fa-check-circle"></i> Natural language event creation</li>
-                    <li><i class="fas fa-check-circle"></i> Smart calendar management</li>
-                    <li><i class="fas fa-check-circle"></i> Voice command support</li>
-                    <li><i class="fas fa-check-circle"></i> Cross-platform sync</li>
-                </ul>
+                <p class="signup-link">Don't have an account? <a href="#" id="showSignUp">Sign up</a></p>
             </div>
         </div>
     </div>
     
-    <!-- Main App (initially hidden) -->
+    <!-- App Container (initially hidden) -->
     <div id="appContainer" class="app-container" style="display: none;">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo-container">
-                <img src="logo.svg" alt="Smart Scheduler" class="logo">
-                <h1>Smart Scheduler</h1>
-            </div>
-            
-            <nav class="nav-links">
-                <a href="#" class="nav-link active">Home</a>
-                <a href="#" class="nav-link">Calendar</a>
-                <a href="#" class="nav-link">Settings</a>
-            </nav>
-            
-            <div class="user-actions">
-                <div class="user-info">
-                    <img id="userAvatar" src="" alt="User" class="user-avatar">
-                    <span id="userName"></span>
-                </div>
-                <button id="signOutBtn" class="sign-out-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sign Out</span>
-                </button>
-                <button class="mobile-menu-btn">
+        <!-- App header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="menuToggle" class="menu-toggle">
                     <i class="fas fa-bars"></i>
                 </button>
+                <h1 id="welcomeMessage">Welcome to Smart Scheduler</h1>
+            </div>
+            <div class="header-right">
+                <div class="profile-icon" id="profileIcon">
+                    <span class="profile-initials">U</span>
+                </div>
             </div>
         </header>
         
-        <!-- Mobile Menu -->
-        <div class="mobile-menu" id="mobileMenu">
-            <div class="mobile-menu-header">
-                <h3 class="mobile-menu-title">Menu</h3>
-                <button class="close-menu-btn" id="closeMenuBtn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <nav class="mobile-nav-links">
-                <a href="#" class="mobile-nav-link active">
-                    <i class="fas fa-home"></i>
-                    <span>Home</span>
-                </a>
-                <a href="#" class="mobile-nav-link">
-                    <i class="fas fa-calendar"></i>
-                    <span>Calendar</span>
-                </a>
-                <a href="#" class="mobile-nav-link">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-            </nav>
-            
-            <div class="mobile-user-profile">
-                <div class="mobile-user-info">
-                    <img id="mobileUserAvatar" src="" alt="User" class="mobile-user-avatar">
-                    <div class="mobile-user-details">
-                        <h4 id="mobileUserName">User Name</h4>
-                        <p id="mobileUserEmail">user@example.com</p>
-                    </div>
-                </div>
-                
-                <div class="mobile-menu-footer">
-                    <button class="mobile-menu-btn-secondary" id="mobileSignOutBtn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Sign Out</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Overlay -->
-        <div class="overlay" id="overlay"></div>
-        
-        <!-- Main Content -->
+        <!-- Main content -->
         <main class="main-content">
-            <!-- Chat Container -->
-            <div class="chat-container" id="chatContainer">
-                <div class="welcome-message">
-                    <h2>Welcome to Smart Scheduler</h2>
-                    <p>I'm your AI scheduling assistant. How can I help you today?</p>
-                    <div class="suggestions">
-                        <button class="suggestion-btn">Schedule a meeting</button>
-                        <button class="suggestion-btn">Check my calendar</button>
-                        <button class="suggestion-btn">Set a reminder</button>
-                    </div>
-                </div>
-                
-                <div class="messages" id="messages">
-                    <!-- Messages will be added here dynamically -->
-                </div>
-                
-                <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            </div>
+            <!-- Chat interface will be rendered here -->
+            <div id="chatContainer" class="chat-container"></div>
             
-            <!-- Input Area -->
-            <div class="input-container" id="inputContainer">
-                <div class="input-wrapper">
+            <!-- Input area -->
+            <div class="input-container">
+                <form id="messageForm" class="message-form">
                     <input 
                         type="text" 
-                        id="inputBox" 
-                        placeholder="Type your message or say something..."
+                        id="messageInput" 
+                        placeholder="Type your message or say 'Hey Siri, add an event'" 
+                        class="message-input"
                         autocomplete="off"
-                    >
-                    <button id="voiceButton" class="voice-button">
+                    />
+                    <button type="button" id="voiceInputBtn" class="voice-input-btn">
                         <i class="fas fa-microphone"></i>
                     </button>
-                    <button id="sendButton" class="send-button">
+                    <button type="submit" class="send-btn">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                </div>
-                <div class="voice-recording" id="voiceRecording" style="display: none;">
-                    <div class="recording-indicator">
-                        <span class="pulse"></span>
-                        <span>Listening...</span>
-                    </div>
-                    <button id="stopRecording" class="stop-recording">
-                        <i class="fas fa-stop"></i>
-                    </button>
+                </form>
+                
+                <div id="recordingIndicator" class="recording-indicator" style="display: none;">
+                    <div class="pulse"></div>
+                    <span>Listening...</span>
                 </div>
             </div>
         </main>
     </div>
-
-    <!-- JavaScript Files -->
-    <script type="module" src="src/js/config.js"></script>
-    <script type="module" src="src/js/utils.js"></script>
-    <script type="module" src="src/js/auth.js"></script>
-    <script type="module" src="src/js/calendar.js"></script>
-    <script type="module" src="src/js/llm.js"></script>
-    <script type="module" src="src/js/ui.js"></script>
-    <script type="module" src="src/js/main.js"></script>
     
+    <!-- Google API Client -->
     <script>
-        // Global state
-        let isAuthenticated = false;
+        // Define the missing functions
+        window.gapiLoaded = function() {
+            console.log('Google API client loaded');
+            // Initialize the app if not already initialized
+            if (document.readyState === 'complete') {
+                initializeApp();
+            } else {
+                window.addEventListener('load', initializeApp);
+            }
+        };
+
+        window.gisLoaded = function() {
+            console.log('Google Identity Services loaded');
+            // The actual initialization will happen in initializeApp
+        };
+
+        window.handleGapiError = function() {
+            console.error('Failed to load Google API client');
+            showError('Failed to load Google services. Please check your connection and refresh the page.');
+        };
+
+        window.handleGisError = function() {
+            console.error('Failed to load Google Identity Services');
+            showError('Failed to load authentication services. Please check your connection and refresh the page.');
+        };
+    </script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="handleGapiError()"></script>
+    
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="handleGisError()"></script>
+    
+    <!-- Import the application configuration -->
+    <script type="module">
+        import { CONFIG } from './src/config.js';
+        // Make config globally available
+        window.CONFIG = CONFIG;
+    </script>
+    
+    <!-- Import the main application logic -->
+    <script type="module" src="./src/js/app.js"></script>
+    
+    <!-- Application Scripts -->
+    <script type="module">
+        import { CONFIG } from './src/config.js';
         
-        // DOM elements
-        const welcomeContainer = document.getElementById('welcomeContainer');
+        // Make config globally available
+        window.CONFIG = CONFIG;
+        
+        // Global state
+        window.authState = {
+            isSignedIn: false,
+            userProfile: null,
+            tokenClient: null,
+            gapiInited: false,
+            gisInited: false
+        };
+        
+        // DOM Elements
         const loginContainer = document.getElementById('loginContainer');
         const appContainer = document.getElementById('appContainer');
-        const signOutBtn = document.getElementById('signOutBtn');
-        const mobileSignOutBtn = document.getElementById('mobileSignOutBtn');
-        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-        const closeMenuBtn = document.getElementById('closeMenuBtn');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const overlay = document.getElementById('overlay');
-        const inputBox = document.getElementById('inputBox');
-        const sendButton = document.getElementById('sendButton');
-        const voiceButton = document.getElementById('voiceButton');
-        const voiceRecording = document.getElementById('voiceRecording');
-        const stopRecording = document.getElementById('stopRecording');
-        const chatContainer = document.getElementById('chatContainer');
-        const testButton = document.getElementById('testButton');
         const googleSignInBtn = document.getElementById('googleSignInBtn');
-        const emailSignInBtn = document.getElementById('emailSignInBtn');
-        const signUpLink = document.getElementById('signUpLink');
-        const getStartedBtn = document.getElementById('getStartedBtn');
+        const errorContainer = document.getElementById('errorContainer');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const profileInitials = document.querySelectorAll('.profile-initials');
         
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', () => {
-            // Setup event listeners
-            setupEventListeners();
-            
-            // Show welcome screen by default
-            showWelcomeScreen();
-        });
-        
-        // Set up event listeners
-        function setupEventListeners() {
-            // Navigation buttons
-            if (getStartedBtn) getStartedBtn.addEventListener('click', showLoginScreen);
-            if (testButton) testButton.addEventListener('click', startDemoMode);
-            
-            // Mobile menu
-            if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMobileMenu);
-            if (closeMenuBtn) closeMenuBtn.addEventListener('click', closeMobileMenu);
-            if (overlay) overlay.addEventListener('click', closeMobileMenu);
-            
-            // Authentication
-            if (googleSignInBtn) googleSignInBtn.addEventListener('click', handleGoogleSignIn);
-            if (emailSignInBtn) emailSignInBtn.addEventListener('click', handleEmailSignIn);
-            if (signUpLink) signUpLink.addEventListener('click', handleSignUp);
-            
-            // Chat functionality
-            if (sendButton) sendButton.addEventListener('click', handleSendMessage);
-            if (inputBox) {
-                inputBox.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                    }
-                });
-            }
-            
-            // Voice input
-            if (voiceButton) voiceButton.addEventListener('click', toggleVoiceInput);
-            if (stopRecording) stopRecording.addEventListener('click', stopVoiceInput);
-            
-            // Sign out buttons
-            if (signOutBtn) signOutBtn.addEventListener('click', handleSignOut);
-            if (mobileSignOutBtn) mobileSignOutBtn.addEventListener('click', handleSignOut);
-            
-            // Suggestion buttons
-            const suggestionButtons = document.querySelectorAll('.suggestion-btn');
-            suggestionButtons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    inputBox.value = e.target.textContent;
-                    handleSendMessage();
-                });
-            });
-        }
-        
-        // Screen management functions
-        function showWelcomeScreen() {
-            if (welcomeContainer) welcomeContainer.style.display = 'flex';
-            if (loginContainer) loginContainer.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'none';
-        }
-        
-        function showLoginScreen() {
-            if (welcomeContainer) welcomeContainer.style.display = 'none';
-            if (loginContainer) loginContainer.style.display = 'flex';
-            if (appContainer) appContainer.style.display = 'none';
-        }
-        
-        function showAppScreen() {
-            if (welcomeContainer) welcomeContainer.style.display = 'none';
-            if (loginContainer) loginContainer.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'block';
-        }
-        
-        function startDemoMode() {
-            isAuthenticated = true;
-            showAppScreen();
-            showMessage('System', 'Demo mode activated. You can test the chat functionality.', 'system');
-        }
-        
-        // Authentication handlers
-        function handleGoogleSignIn() {
-            if (tokenClient) {
-                tokenClient.requestAccessToken();
-            } else {
-                showMessage('System', 'Google Sign-In is not available. Please try again later.', 'error');
+        // Update sign-in button state
+        function updateSigninStatus() {
+            const signInButton = document.getElementById('googleSignInBtn');
+            if (signInButton) {
+                const isReady = window.authState.gapiInited && window.authState.gisInited;
+                signInButton.disabled = !isReady;
+                signInButton.innerHTML = isReady 
+                    ? '<img src="https://www.google.com/favicon.ico" alt="Google" class="provider-icon" /> <span>Continue with Google</span>'
+                    : '<i class="fas fa-spinner fa-spin"></i> Loading...';
             }
         }
         
-        function handleEmailSignIn() {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            
-            if (!email || !password) {
-                showMessage('System', 'Please enter both email and password.', 'error');
+        function gisLoaded() {
+            console.log('Google Identity Services loaded, initializing...');
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                console.error('Google Identity Services not loaded properly');
+                showError('Failed to load authentication services. Please refresh the page.');
                 return;
             }
             
-            showMessage('System', 'Email authentication is not implemented in this demo. Please use Google Sign-In or Demo Mode.', 'system');
-        }
-        
-        function handleSignUp(e) {
-            e.preventDefault();
-            showMessage('System', 'Account creation is not implemented in this demo. Please use Google Sign-In or Demo Mode.', 'system');
-        }
-        
-        function handleSignOut() {
-            const auth2 = gapi.auth2.getAuthInstance();
-            if (auth2) {
-                auth2.signOut().then(() => {
-                    console.log('User signed out.');
+            try {
+                window.authState.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: window.CONFIG.GOOGLE.CLIENT_ID,
+                    scope: window.CONFIG.GOOGLE.SCOPES,
+                    callback: handleAuthResponse,
+                    error_callback: (error) => {
+                        console.error('Google auth error:', error);
+                        if (error.type === 'popup_closed') {
+                            showError('Sign in was canceled. Please try again.');
+                        } else {
+                            showError('Authentication error. Please try again.');
+                        }
+                    }
                 });
+                window.authState.gisInited = true;
+                updateSigninStatus();
+            } catch (error) {
+                console.error('Error initializing Google Identity Services:', error);
+                showError('Failed to initialize authentication services. Please refresh the page.');
+            }
+        }
+        
+        async function initializeGapiClient() {
+            try {
+                // First load the client library
+                await new Promise((resolve, reject) => {
+                    gapi.load('client:auth2', {
+                        callback: resolve,
+                        onerror: reject,
+                        timeout: 10000,
+                        ontimeout: () => reject(new Error('Timeout loading Google API client'))
+                    });
+                });
+
+                console.log('Initializing GAPI client with config:', {
+                    apiKey: window.CONFIG.GOOGLE.API_KEY,
+                    clientId: window.CONFIG.GOOGLE.CLIENT_ID,
+                    discoveryDocs: window.CONFIG.GOOGLE.DISCOVERY_DOCS,
+                    scope: window.CONFIG.GOOGLE.SCOPES
+                });
+
+                // Initialize the client with API key and discovery docs
+                await gapi.client.init({
+                    apiKey: window.CONFIG.GOOGLE.API_KEY,
+                    discoveryDocs: window.CONFIG.GOOGLE.DISCOVERY_DOCS,
+                    clientId: window.CONFIG.GOOGLE.CLIENT_ID,
+                    scope: window.CONFIG.GOOGLE.SCOPES
+                });
+                
+                console.log('GAPI client initialized successfully');
+                window.authState.gapiInited = true;
+                updateSigninStatus();
+                
+                // Check for existing token
+                const authInstance = gapi.auth2.getAuthInstance();
+                if (authInstance && authInstance.isSignedIn.get()) {
+                    window.authState.isSignedIn = true;
+                    updateUI(true);
+                    await loadUserProfile();
+                }
+                
+            } catch (error) {
+                console.error('Error initializing GAPI client:', error);
+                let errorMessage = 'Failed to initialize Google services. ';
+                
+                if (error.status === 400) {
+                    errorMessage += 'Invalid API key or client ID. Please check your Google Cloud Console settings.';
+                } else if (error.details) {
+                    if (error.details.includes('ORIGIN')) {
+                        errorMessage = 'Invalid domain. Please add ' + window.location.origin + ' to Authorized JavaScript origins in Google Cloud Console.';
+                    } else {
+                        errorMessage += error.details;
+                    }
+                } else if (error.message) {
+                    errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
+                throw error; // Re-throw to be caught by the caller
+            }
+        }
+        
+        function handleAuthResponse(response) {
+            if (response && response.access_token) {
+                window.authState.isSignedIn = true;
+                localStorage.setItem('google_access_token', response.access_token);
+                updateUI(true);
+                loadUserProfile();
+            } else {
+                console.error('Error during authentication');
+                showError('Authentication failed. Please try again.');
+            }
+        }
+        
+        function handleGoogleSignIn() {
+            if (!window.authState.tokenClient) {
+                console.error('Google token client not initialized');
+                showError('Authentication service not ready. Please refresh the page.');
+                return;
+            }
+            
+            // Clear any existing tokens
+            if (window.gapi && window.gapi.auth2) {
+                const auth2 = window.gapi.auth2.getAuthInstance();
+                if (auth2) {
+                    auth2.signOut();
+                }
             }
             
             // Clear any stored tokens
-            if (window.google && google.accounts) {
-                google.accounts.id.revoke(localStorage.getItem('google_id'), done => {
-                    console.log('Consent revoked');
-                });
-            }
+            localStorage.removeItem('google_access_token');
             
-            // Clear local state
-            isAuthenticated = false;
-            localStorage.removeItem('google_token');
-            
-            // Update UI
-            showLoginScreen();
-            closeMobileMenu();
-            showMessage('System', 'You have been signed out.', 'system');
-        }
-        
-        // Show message in chat
-        function showMessage(sender, text, type = 'user') {
-            const messagesContainer = document.getElementById('messages');
-            if (!messagesContainer) return;
-            
-            // Create message element
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${type}`;
-            
-            // Add avatar for assistant messages
-            if (type === 'assistant' || type === 'system' || type === 'error' || type === 'success') {
-                const avatar = document.createElement('div');
-                avatar.className = 'message-avatar';
-                if (type === 'assistant') {
-                    avatar.innerHTML = '<i class="fas fa-robot"></i>';
-                } else if (type === 'system' || type === 'success') {
-                    avatar.innerHTML = '<i class="fas fa-info-circle"></i>';
-                } else if (type === 'error') {
-                    avatar.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
-                }
-                messageElement.appendChild(avatar);
-            }
-            
-            // Create message content container
-            const messageContent = document.createElement('div');
-            messageContent.className = 'message-content';
-            
-            // Add sender name
-            const senderElement = document.createElement('div');
-            senderElement.className = 'message-sender';
-            senderElement.textContent = sender;
-            messageContent.appendChild(senderElement);
-            
-            // Add message text
-            const textElement = document.createElement('div');
-            textElement.className = 'message-text';
-            textElement.textContent = text;
-            messageContent.appendChild(textElement);
-            
-            // Add timestamp
-            const timeElement = document.createElement('div');
-            timeElement.className = 'message-time';
-            timeElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            messageContent.appendChild(timeElement);
-            
-            // Add message content to message element
-            messageElement.appendChild(messageContent);
-            
-            // Add message to chat
-            messagesContainer.appendChild(messageElement);
-            
-            // Scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        
-        // Voice input functions
-        function toggleVoiceInput() {
-            if (!recognition) return;
-            
+            // Request new access token with explicit consent
             try {
-                recognition.start();
-                voiceButton.style.display = 'none';
-                voiceRecording.style.display = 'flex';
+                window.authState.tokenClient.requestAccessToken({ prompt: 'consent' });
             } catch (error) {
-                console.error('Error starting voice recognition:', error);
-                showMessage('System', 'Error: Could not access microphone. Please check permissions.', 'error');
+                console.error('Error requesting access token:', error);
+                showError('Error signing in. Please try again.');
             }
         }
         
-        function stopVoiceInput() {
-            if (recognition) {
-                recognition.stop();
+        function updateUI(isSignedIn) {
+            if (loginContainer) {
+                loginContainer.style.display = isSignedIn ? 'none' : 'flex';
             }
-            voiceRecording.style.display = 'none';
-            voiceButton.style.display = 'flex';
+            if (appContainer) {
+                appContainer.style.display = isSignedIn ? 'block' : 'none';
+            }
         }
         
-        // Mobile menu functions
-        function toggleMobileMenu() {
-            if (mobileMenu) mobileMenu.classList.add('show');
-            if (overlay) overlay.classList.add('show');
-            document.body.style.overflow = 'hidden';
+        function showError(message) {
+            if (errorContainer) {
+                errorContainer.textContent = message;
+                errorContainer.style.display = 'block';
+                setTimeout(() => {
+                    errorContainer.style.display = 'none';
+                }, 5000);
+            }
         }
         
-        function closeMobileMenu() {
-            if (mobileMenu) mobileMenu.classList.remove('show');
-            if (overlay) overlay.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-        
-        // Initialize speech recognition if available
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                if (inputBox) inputBox.value = transcript;
-                handleSendMessage();
-            };
-            
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                showMessage('System', 'Error: Could not process voice input. Please try again.', 'error');
-            };
-        } else if (voiceButton) {
-            voiceButton.style.display = 'none';
-        }
-        
-        // Chat functionality
-        async function handleSendMessage() {
-            const message = inputBox.value.trim();
-            if (!message) return;
-            
-            // Add user message to chat
-            showMessage('You', message, 'user');
-            inputBox.value = '';
-            
-            // Show typing indicator
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (typingIndicator) typingIndicator.style.display = 'flex';
-            
+        async function loadUserProfile() {
             try {
-                // In a real app, you would send this to your backend for processing
-                // For now, we'll just create a simple event
-                if (message.toLowerCase().includes('schedule') || message.toLowerCase().includes('meeting')) {
-                    if (!isAuthenticated) {
-                        showMessage('System', 'Please sign in to schedule events.', 'error');
-                        return;
+                if (!gapi.client) {
+                    console.error('gapi.client is not available');
+                    return;
+                }
+                
+                // First try to get user info from People API
+                let userName = 'User';
+                let userEmail = '';
+                
+                try {
+                    // Get basic profile info
+                    const profileResponse = await gapi.client.people.people.get({
+                        resourceName: 'people/me',
+                        personFields: 'names,emailAddresses,photos'
+                    });
+                    
+                    const profile = profileResponse.result;
+                    if (profile.names && profile.names.length > 0) {
+                        userName = profile.names[0].displayName || 'User';
+                    }
+                    if (profile.emailAddresses && profile.emailAddresses.length > 0) {
+                        userEmail = profile.emailAddresses[0].value || '';
                     }
                     
-                    // Create a sample event (in a real app, you'd parse the message)
-                    const eventDetails = {
-                        summary: 'Meeting',
-                        description: 'Scheduled via Smart Scheduler',
-                        startDateTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                        endDateTime: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString()
-                    };
+                    console.log('User profile loaded:', { userName, userEmail });
+                } catch (profileError) {
+                    console.warn('Error loading user profile from People API, falling back to Calendar API', profileError);
                     
-                    const event = await createCalendarEvent(eventDetails);
-                    const eventLink = event.htmlLink;
+                    // Fallback to Calendar API if People API fails
+                    const calendarResponse = await gapi.client.calendar.calendarList.get({
+                        calendarId: 'primary'
+                    });
                     
-                    showMessage('Assistant', `I've scheduled your meeting! You can view it here: <a href="${eventLink}" target="_blank">View Event</a>`, 'assistant');
-                } else {
-                    showMessage('Assistant', 'I can help you schedule events in your Google Calendar. Try saying "Schedule a meeting tomorrow at 2pm"', 'assistant');
+                    if (calendarResponse.result && calendarResponse.result.summary) {
+                        userName = calendarResponse.result.summary;
+                    }
                 }
-            } catch (error) {
-                console.error('Error processing message:', error);
-                showMessage('System', 'An error occurred while processing your request. Please try again.', 'error');
-            } finally {
-        let gapiInited = false;
-        let gisInited = false;
-        
-        // Initialize Google APIs when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the Google API client library and set up sign-in
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.onload = () => {
-                gapi.load('client:auth2', initializeGapiClient);
-            };
-            document.head.appendChild(script);
-            
-            // Load the Google Identity Services library
-            const gisScript = document.createElement('script');
-            gisScript.src = 'https://accounts.google.com/gsi/client';
-            gisScript.async = true;
-            gisScript.defer = true;
-            gisScript.onload = initializeGis;
-            document.head.appendChild(gisScript);
-        });
-        
-        // Initialize the Google API client
-        async function initializeGapiClient() {
-            try {
-                await gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: [DISCOVERY_DOC],
+                
+                const userInitial = userName.charAt(0).toUpperCase();
+                
+                // Update UI with user info
+                profileInitials.forEach(el => {
+                    el.textContent = userInitial;
                 });
-                gapiInited = true;
-                console.log('Google API client initialized');
-                maybeEnableSignIn();
+                
+                if (welcomeMessage) {
+                    welcomeMessage.textContent = `Welcome, ${userName}!`;
+                }
+                
             } catch (error) {
-                console.error('Error initializing Google API client:', error);
-                showMessage('System', 'Error initializing Google services. Please try again later.', 'error');
+                console.error('Error loading user profile:', error);
+                if (error.status === 401) {
+                    // Token expired, re-authenticate
+                    handleGoogleSignIn();
+                } else {
+                    showError('Error loading profile. Please try again.');
+                }
+            }
+        }
+        
+        // Initialize application
+        function initializeApp() {
+            console.log('Initializing application...');
+            
+            // Initialize Google APIs
+            if (window.gapi) {
+                // First load the client library
+                gapi.load('client:auth2', {
+                    callback: () => {
+                        console.log('GAPI client loaded, initializing...');
+                        initializeGapiClient().catch(error => {
+                            console.error('Failed to initialize GAPI client:', error);
+                            showError('Failed to initialize Google services. Please refresh the page.');
+                        });
+                    },
+                    onerror: (error) => {
+                        console.error('Failed to load GAPI client:', error);
+                        showError('Failed to load Google services. Please check your connection.');
+                    },
+                    timeout: 10000,
+                    ontimeout: () => showError('Connection to Google services timed out. Please refresh the page.')
+                });
+            } else {
+                const error = 'Google API client not loaded. Check your internet connection and refresh the page.';
+                console.error(error);
+                showError(error);
+            }
+            
+            // Initialize Google Identity Services
+            if (window.google && window.google.accounts) {
+                try {
+                    initializeGis();
+                } catch (error) {
+                    console.error('Failed to initialize Google Identity Services:', error);
+                    showError('Failed to initialize authentication services');
+                }
+            } else {
+                const error = 'Google Identity Services not loaded. Check your internet connection and refresh the page.';
+                console.error(error);
+                showError(error);
             }
         }
         
         // Initialize Google Identity Services
         function initializeGis() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                prompt: 'select_account',
-                callback: (response) => {
-                    if (response && response.access_token) {
-                        // User is signed in
-                        isAuthenticated = true;
-                        showAppScreen();
-                        loadUserProfile();
-                        showMessage('System', 'Successfully signed in! How can I help you schedule today?', 'success');
-                    }
-                }
-            });
-            gisInited = true;
-            console.log('Google Identity Services initialized');
-            maybeEnableSignIn();
-        }
-        
-        // Enable the sign-in button if both libraries are loaded
-        function maybeEnableSignIn() {
-            if (gapiInited && gisInited) {
-                if (googleSignInBtn) {
-                    googleSignInBtn.disabled = false;
-                }
-            }
-        }
-        
-        // Handle Google Sign-In
-        function handleGoogleSignIn() {
-            if (!tokenClient) {
-                showMessage('System', 'Google Sign-In is not available. Please try again later.', 'error');
-                return;
-            }
-            
-            // Request access token
-            tokenClient.requestAccessToken();
-        }
-        
-        // Load the user's profile
-        async function loadUserProfile() {
             try {
-                const response = await gapi.client.people.people.get({
-                    resourceName: 'people/me',
-                    personFields: 'names,emailAddresses,photos'
-                });
-                
-                const profile = response.result;
-                const name = profile.names[0].displayName;
-                const email = profile.emailAddresses[0].value;
-                const photoUrl = profile.photos && profile.photos[0] ? profile.photos[0].url : '';
-                
-                // Update UI with user info
-                const userNameElements = document.querySelectorAll('#userName, #mobileUserName');
-                const userAvatarElements = document.querySelectorAll('#userAvatar, #mobileUserAvatar');
-                const userEmailElement = document.querySelector('#mobileUserEmail');
-                
-                userNameElements.forEach(el => el.textContent = name);
-                userAvatarElements.forEach(el => {
-                    if (photoUrl) {
-                        el.src = photoUrl;
-                        el.style.display = 'block';
-                    } else {
-                        el.style.display = 'none';
+                window.authState.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: window.CONFIG.GOOGLE.CLIENT_ID,
+                    scope: window.CONFIG.GOOGLE.SCOPES,
+                    callback: handleAuthResponse,
+                    error_callback: (error) => {
+                        console.error('Google auth error:', error);
+                        showError('Authentication error. Please try again.');
                     }
                 });
-                
-                if (userEmailElement) {
-                    userEmailElement.textContent = email;
+                window.authState.gisInited = true;
+                updateSigninStatus();
+            } catch (error) {
+                console.error('Error initializing Google Identity Services:', error);
+                showError('Failed to initialize authentication services');
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, starting initialization...');
+            
+            // Set a timeout to show loading state
+            const initTimeout = setTimeout(() => {
+                if (!window.authState.gapiInited || !window.authState.gisInited) {
+                    showError('Taking longer than expected to load. Please wait...');
                 }
+            }, 3000);
+            
+            // Initialize the application
+            try {
+                initializeApp();
+                
+                // Check initialization status
+                const checkInitialization = setInterval(() => {
+                    if (window.authState.gapiInited && window.authState.gisInited) {
+                        clearTimeout(initTimeout);
+                        clearInterval(checkInitialization);
+                        console.log('Application initialized successfully');
+                    }
+                }, 100);
                 
             } catch (error) {
-                console.error('Error loading user profile:', error);
-            }
-        }
-        
-        // Create a calendar event
-        async function createCalendarEvent(eventDetails) {
-            if (!isAuthenticated) {
-                showMessage('System', 'Please sign in to create events.', 'error');
-                return;
+                console.error('Error initializing application:', error);
+                showError('Failed to initialize application. Please refresh the page.');
             }
             
-            try {
-                const event = {
-                    'summary': eventDetails.summary || 'New Event',
-                    'location': eventDetails.location || '',
-                    'description': eventDetails.description || '',
-                    'start': {
-                        'dateTime': eventDetails.startDateTime || new Date().toISOString(),
-                        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-                    },
-                    'end': {
-                        'dateTime': eventDetails.endDateTime || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-                        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-                    },
-                    'attendees': eventDetails.attendees || [],
-                    'reminders': {
-                        'useDefault': true
-                    }
-                };
-                
-                const request = gapi.client.calendar.events.insert({
-                    'calendarId': 'primary',
-                    'resource': event
-                });
-                
-                const response = await request;
-                console.log('Event created:', response);
-                return response.result;
-                
-            } catch (error) {
-                console.error('Error creating event:', error);
-                throw error;
-            }
-        }
-        
-        // Add CSS for the chat interface
-        const style = document.createElement('style');
-        style.textContent = `
-            /* Chat message styles */
-            .message {
-                display: flex;
-                margin-bottom: 16px;
-                max-width: 85%;
+            // Update UI based on auth state (will be updated after initialization)
+            updateUI(false);
+            
+            // Add event listeners
+            if (googleSignInBtn) {
+                googleSignInBtn.addEventListener('click', handleGoogleSignIn);
             }
             
-            .message.user {
-                margin-left: auto;
-                flex-direction: row-reverse;
-            }
-            
-            .message-avatar {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background-color: #6366f1;
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0 8px;
-                flex-shrink: 0;
-            }
-            
-            .message-content {
-                background-color: #f3f4f6;
-                border-radius: 12px;
-                padding: 12px 16px;
-                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            }
-            
-            .user .message-content {
-                background-color: #6366f1;
-                color: white;
-            }
-            
-            .message-sender {
-                font-weight: 600;
-                font-size: 0.875rem;
-                margin-bottom: 4px;
-            }
-            
-            .message-text {
-                font-size: 0.9375rem;
-                line-height: 1.5;
-            }
-            
-            .message-time {
-                font-size: 0.75rem;
-                color: #6b7280;
-                text-align: right;
-                margin-top: 4px;
-            }
-            
-            .user .message-time {
-                color: rgba(255, 255, 255, 0.8);
-            }
-            
-            /* Typing indicator */
-            .typing-indicator {
-                display: none;
-                align-items: center;
-                margin-bottom: 16px;
-            }
-            
-            .typing-dot {
-                width: 8px;
-                height: 8px;
-                background-color: #9ca3af;
-                border-radius: 50%;
-                margin: 0 2px;
-                animation: typing 1.4s infinite ease-in-out;
-            }
-            
-            .typing-dot:nth-child(1) { animation-delay: 0s; }
-            .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-            .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-            
-            @keyframes typing {
-                0%, 60%, 100% { transform: translateY(0); }
-                30% { transform: translateY(-6px); }
-            }
-            
-            /* Voice recording indicator */
-            .voice-recording {
-                display: none;
-                align-items: center;
-                justify-content: center;
-                padding: 12px;
-                background-color: #fef2f2;
-                border-radius: 12px;
-                margin: 12px 0;
-            }
-            
-            .recording-indicator {
-                display: flex;
-                align-items: center;
-                color: #dc2626;
-                font-weight: 500;
-            }
-            
-            .pulse {
-                width: 12px;
-                height: 12px;
-                background-color: #dc2626;
-                border-radius: 50%;
-                margin-right: 8px;
-                animation: pulse 1.5s infinite;
-            }
-            
-            @keyframes pulse {
-                0% { transform: scale(0.95); opacity: 0.8; }
-                70% { transform: scale(1.2); opacity: 1; }
-                100% { transform: scale(0.95); opacity: 0.8; }
-            }
-            
-            .stop-recording {
-                background: none;
-                border: none;
-                color: #dc2626;
-                cursor: pointer;
-                margin-left: 16px;
-                font-size: 1.25rem;
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // Google API client initialization
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-        
-        async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: 'YOUR_API_KEY', // Replace with your API key
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
-            });
-            gapiInited = true;
-            maybeEnableButtons();
-        }
-        
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: 'YOUR_CLIENT_ID', // Replace with your client ID
-                scope: 'https://www.googleapis.com/auth/calendar',
-                callback: (response) => {
-                    if (response && response.access_token) {
-                        accessToken = response.access_token;
-                        localStorage.setItem('google_access_token', accessToken);
-                        
-                        if (elements.loginContainer) elements.loginContainer.style.display = 'none';
-                        if (elements.appLayout) elements.appLayout.style.display = 'block';
-                        
-                        // Load user profile
-                        loadUserProfile();
-                        
-                        // Add welcome message
-                        if (window.ui) {
-                            window.ui.addMessage("You've successfully signed in! How can I help you schedule today?", 'assistant');
-                        }
-                    }
-                }
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
-        
-        function maybeEnableButtons() {
-            if (elements.googleSignInBtn) {
-                elements.googleSignInBtn.style.display = gisInited ? 'block' : 'none';
-            }
-        }
-        
-        function handleAuthClick() {
-            if (!accessToken) {
-                tokenClient.requestAccessToken();
-            } else {
-                google.accounts.oauth2.revoke(accessToken, () => {
-                    accessToken = null;
-                    localStorage.removeItem('google_access_token');
-                    
-                    if (elements.appLayout) elements.appLayout.style.display = 'none';
-                    if (elements.loginContainer) elements.loginContainer.style.display = 'flex';
-                    
-                    // Clear chat
-                    if (elements.chatContainer) elements.chatContainer.innerHTML = '';
+            // Email sign-in form
+            const emailSignInForm = document.getElementById('emailSignInForm');
+            if (emailSignInForm) {
+                emailSignInForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    // Handle email/password sign-in
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    console.log('Email sign-in attempt:', { email });
+                    // TODO: Implement email/password authentication
                 });
             }
-        }
+        });
     </script>
 </body>
 </html>
