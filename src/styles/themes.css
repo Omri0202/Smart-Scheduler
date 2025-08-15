@@ -1,0 +1,121 @@
+/* Theme Variants and Dark Mode */
+
+/* Dark theme variables */
+[data-theme="dark"] {
+    --primary: #818cf8;
+    --primary-dark: #6366f1;
+    --primary-light: #a5b4fc;
+    --text: #f1f5f9;
+    --text-light: #94a3b8;
+    --bg: #0f172a;
+    --bg-dark: #020617;
+    --card-bg: #1e293b;
+    --border: #334155;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    --glass: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Auto dark mode based on system preference */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --primary: #818cf8;
+        --primary-dark: #6366f1;
+        --primary-light: #a5b4fc;
+        --text: #f1f5f9;
+        --text-light: #94a3b8;
+        --bg: #0f172a;
+        --bg-dark: #020617;
+        --card-bg: #1e293b;
+        --border: #334155;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        --glass: rgba(30, 41, 59, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-full);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.125rem;
+}
+
+.theme-toggle:hover {
+    background: var(--bg);
+    transform: scale(1.05);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Theme-specific adjustments */
+[data-theme="dark"] .google-signin-button {
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+[data-theme="dark"] .google-signin-button:hover {
+    background: var(--bg);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .particle {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.05), rgba(129, 140, 248, 0.1));
+}
+
+[data-theme="dark"] .glass {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .floating-particles {
+    opacity: 0.6;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    :root {
+        --primary: #4338ca;
+        --primary-dark: #3730a3;
+        --text: #000000;
+        --text-light: #374151;
+        --border: #6b7280;
+    }
+    
+    [data-theme="dark"] {
+        --primary: #a5b4fc;
+        --primary-dark: #818cf8;
+        --text: #ffffff;
+        --text-light: #d1d5db;
+        --border: #9ca3af;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .floating-particles {
+        display: none;
+    }
+}
