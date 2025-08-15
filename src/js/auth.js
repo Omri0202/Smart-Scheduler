@@ -1,221 +1,143 @@
 /**
- * Authentication Module
- * Handles Google OAuth authentication and user session management
+ * Authentication Module (Refactored)
+ * Main entry point for authentication functionality - delegates to modular services
  */
 
-// Global variables
-let tokenClient;
-let gapiInited = false;
-let gisInited = false;
-let accessToken = null;
-let userProfile = null;
+import GoogleAuthProvider from '../services/GoogleAuthProvider.js';
 
-// Initialize Google API client
-async function initGoogleAPI() {
-    try {
-        await new Promise((resolve, reject) => {
-            gapi.load('client', {
-                callback: resolve,
-                onerror: reject,
-                timeout: 5000,
-                ontimeout: () => reject(new Error('Google API client load timed out'))
-            });
-        });
-
-        await gapi.client.init({
-            apiKey: CONFIG.GOOGLE.API_KEY || '',
-            discoveryDocs: CONFIG.GOOGLE.DISCOVERY_DOCS,
-        });
-
-        gapiInited = true;
-        utils.logger.log('Google API client initialized');
-        checkAuthStatus();
-    } catch (error) {
-        utils.logger.error('Failed to initialize Google API:', error);
-        ui.showError('Failed to initialize Google API. Please refresh the page.');
+class AuthService {
+    constructor() {
+        this.googleAuthProvider = new GoogleAuthProvider();
+        this.isInitialized = false;
     }
-}
 
-// Initialize Google Identity Services
-function initGoogleIdentity() {
-    try {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CONFIG.GOOGLE.CLIENT_ID,
-            scope: CONFIG.GOOGLE.SCOPES,
-            prompt: 'consent',
-            callback: (response) => {
-                if (response && response.access_token) {
-                    handleAuthSuccess(response);
-                } else if (response && response.error) {
-                    handleAuthError(response.error);
-                }
-            },
-            error_callback: (error) => {
-                handleAuthError(error);
+    /**
+     * Initialize authentication service
+     */
+    async init() {
+        try {
+            await this.googleAuthProvider.init();
+            this.isInitialized = true;
+            
+            if (window.utils && window.utils.logger) {
+                window.utils.logger.log('Auth service initialized');
+            } else {
+                console.log('Auth service initialized');
             }
-        });
-
-        gisInited = true;
-        utils.logger.log('Google Identity Services initialized');
-        checkAuthStatus();
-    } catch (error) {
-        utils.logger.error('Failed to initialize Google Identity Services:', error);
-        ui.showError('Failed to initialize authentication service. Please refresh the page.');
-    }
-}
-
-// Check authentication status
-function checkAuthStatus() {
-    if (!gapiInited || !gisInited) return false;
-    
-    // Check for access token in URL hash
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const token = hashParams.get('access_token');
-    
-    if (token) {
-        // Remove token from URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        accessToken = token;
-        gapi.client.setToken({ access_token: accessToken });
-        loadUserProfile();
-        return true;
-    }
-    
-    // Check if we have a stored token
-    const storedToken = localStorage.getItem('google_access_token');
-    if (storedToken) {
-        accessToken = storedToken;
-        gapi.client.setToken({ access_token: accessToken });
-        loadUserProfile();
-        return true;
-    }
-    
-    return false;
-}
-
-// Handle successful authentication
-async function handleAuthSuccess(response) {
-    try {
-        accessToken = response.access_token;
-        localStorage.setItem('google_access_token', accessToken);
-        
-        // Set the token for gapi client
-        gapi.client.setToken({ 
-            access_token: accessToken,
-            expires_in: response.expires_in || 3600,
-            token_type: 'Bearer'
-        });
-        
-        // Load user profile
-        await loadUserProfile();
-        
-        // Show main app
-        ui.showApp();
-        
-        utils.logger.log('User authenticated successfully');
-    } catch (error) {
-        utils.logger.error('Error in authentication success handler:', error);
-        ui.showError('An error occurred during authentication. Please try again.');
-    }
-}
-
-// Handle authentication error
-function handleAuthError(error) {
-    utils.logger.error('Authentication error:', error);
-    ui.showError('Authentication failed. Please try again.');
-    
-    // Clear any stored tokens
-    localStorage.removeItem('google_access_token');
-    accessToken = null;
-    userProfile = null;
-    
-    // Show login screen
-    ui.showLogin();
-}
-
-// Load user profile from Google
-async function loadUserProfile() {
-    try {
-        const response = await gapi.client.oauth2.userinfo.get();
-        userProfile = response.result;
-        utils.logger.log('User profile loaded:', userProfile);
-        ui.updateUserProfile(userProfile);
-        return userProfile;
-    } catch (error) {
-        utils.logger.error('Failed to load user profile:', error);
-        throw error;
-    }
-}
-
-// Sign out the user
-function signOut() {
-    try {
-        // Revoke token
-        if (accessToken && google.accounts.oauth2) {
-            google.accounts.oauth2.revoke(accessToken, () => {
-                utils.logger.log('Access token revoked');
-            });
+        } catch (error) {
+            console.error('Failed to initialize Auth service:', error);
+            throw error;
         }
-        
-        // Clear tokens and user data
-        localStorage.removeItem('google_access_token');
-        accessToken = null;
-        userProfile = null;
-        
-        // Reset gapi client
-        if (gapi.client && gapi.client.getToken()) {
-            gapi.client.setToken(null);
-        }
-        
-        // Show login screen
-        ui.showLogin();
-        
-        utils.logger.log('User signed out');
-    } catch (error) {
-        utils.logger.error('Error during sign out:', error);
+    }
+
+    /**
+     * Sign in user
+     */
+    async signIn() {
+        return await this.googleAuthProvider.signIn();
+    }
+
+    /**
+     * Sign out user
+     */
+    async signOut() {
+        return await this.googleAuthProvider.signOut();
+    }
+
+    /**
+     * Check if user is authenticated
+     * @returns {boolean} - Authentication status
+     */
+    isAuthenticated() {
+        return this.googleAuthProvider.isAuthenticated();
+    }
+
+    /**
+     * Get current user profile
+     * @returns {Object|null} - User profile
+     */
+    getUserProfile() {
+        return this.googleAuthProvider.getUserProfile();
+    }
+
+    /**
+     * Get current access token
+     * @returns {string|null} - Access token
+     */
+    getAccessToken() {
+        return this.googleAuthProvider.getAccessToken();
+    }
+
+    /**
+     * Add authentication state listener
+     * @param {Function} callback - Callback function
+     */
+    addAuthStateListener(callback) {
+        this.googleAuthProvider.addAuthStateListener(callback);
+    }
+
+    /**
+     * Check if auth service is ready
+     * @returns {boolean} - Whether service is ready
+     */
+    isReady() {
+        return this.isInitialized && this.googleAuthProvider.isReady();
     }
 }
 
-// Initialize authentication
-function initAuth() {
-    // Initialize Google API client
-    if (window.gapi) {
-        initGoogleAPI();
-    } else {
-        window.gapiLoaded = initGoogleAPI;
-    }
-    
-    // Initialize Google Identity Services
-    if (window.google && google.accounts) {
-        initGoogleIdentity();
-    } else {
-        window.gisLoaded = initGoogleIdentity;
-    }
-    
-    // Set up sign out button
-    const signOutBtn = document.getElementById('signOutBtn');
-    if (signOutBtn) {
-        signOutBtn.addEventListener('click', signOut);
-    }
-    
-    // Set up test/demo mode button
-    const testButton = document.getElementById('testButton');
-    if (testButton) {
-        testButton.addEventListener('click', () => {
-            utils.logger.log('Test mode activated');
-            ui.showApp(true);
-        });
-    }
-}
+// Create singleton instance
+const authService = new AuthService();
 
-// Export auth functions
-window.auth = {
-    init: initAuth,
-    signOut,
-    getAccessToken: () => accessToken,
-    getUserProfile: () => userProfile,
-    isAuthenticated: () => !!accessToken
+// Legacy compatibility object
+const auth = {
+    // Initialize auth
+    async init() {
+        await authService.init();
+    },
+
+    // Sign in
+    async signIn() {
+        return await authService.signIn();
+    },
+
+    // Sign out
+    async signOut() {
+        return await authService.signOut();
+    },
+
+    // Check authentication status
+    isAuthenticated() {
+        return authService.isAuthenticated();
+    },
+
+    // Get user profile
+    getUserProfile() {
+        return authService.getUserProfile();
+    },
+
+    // Get access token
+    getAccessToken() {
+        return authService.getAccessToken();
+    },
+
+    // Add state listener
+    addAuthStateListener(callback) {
+        authService.addAuthStateListener(callback);
+    },
+
+    // Get service instance (for advanced usage)
+    getService() {
+        return authService;
+    },
+
+    // Check if ready
+    isReady() {
+        return authService.isReady();
+    }
 };
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', initAuth);
+// Make auth available globally for backward compatibility
+window.auth = auth;
+
+export { AuthService };
+export default auth;
