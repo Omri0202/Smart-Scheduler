@@ -233,18 +233,11 @@
     <script type="module" src="src/js/main.js"></script>
     
     <script>
-        // Google API configuration
-        const API_KEY = 'YOUR_GOOGLE_API_KEY';
-        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-        
-        // Global variables
-        let tokenClient;
-        let accessToken = '';
-        let gapiInited = false;
-        let gisInited = false;
+        // Global state
+        let isAuthenticated = false;
         
         // DOM elements
+        const welcomeContainer = document.getElementById('welcomeContainer');
         const loginContainer = document.getElementById('loginContainer');
         const appContainer = document.getElementById('appContainer');
         const signOutBtn = document.getElementById('signOutBtn');
@@ -263,96 +256,55 @@
         const googleSignInBtn = document.getElementById('googleSignInBtn');
         const emailSignInBtn = document.getElementById('emailSignInBtn');
         const signUpLink = document.getElementById('signUpLink');
-        
-        // Check if the browser supports speech recognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                inputBox.value = transcript;
-                handleSendMessage();
-            };
-            
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                showMessage('System', 'Error: Could not process voice input. Please try again.', 'error');
-            };
-        }
+        const getStartedBtn = document.getElementById('getStartedBtn');
         
         // Initialize the application
-        function initApp() {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup event listeners
             setupEventListeners();
-            checkAuthStatus();
             
-            // Load Google API client library and set up auth
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.onload = () => {
-                gapi.load('client', initializeGapiClient);
-            };
-            document.head.appendChild(script);
-            
-            // Load Google Identity Services
-            const gisScript = document.createElement('script');
-            gisScript.src = 'https://accounts.google.com/gsi/client';
-            gisScript.async = true;
-            gisScript.defer = true;
-            gisScript.onload = gisLoaded;
-            document.head.appendChild(gisScript);
-        }
+            // Show welcome screen by default
+            showWelcomeScreen();
+        });
         
         // Set up event listeners
         function setupEventListeners() {
-            // Mobile menu toggle
-            mobileMenuBtn.addEventListener('click', toggleMobileMenu);
-            closeMenuBtn.addEventListener('click', closeMobileMenu);
-            overlay.addEventListener('click', closeMobileMenu);
+            // Navigation buttons
+            if (getStartedBtn) getStartedBtn.addEventListener('click', showLoginScreen);
+            if (testButton) testButton.addEventListener('click', startDemoMode);
             
-            // Sign out buttons
-            signOutBtn.addEventListener('click', handleSignOut);
-            mobileSignOutBtn.addEventListener('click', handleSignOut);
-            
-            // Send message on button click or Enter key
-            sendButton.addEventListener('click', handleSendMessage);
-            inputBox.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                }
-            });
-            
-            // Voice input
-            if (recognition) {
-                voiceButton.addEventListener('click', toggleVoiceInput);
-                stopRecording.addEventListener('click', stopVoiceInput);
-            } else {
-                voiceButton.style.display = 'none';
-            }
+            // Mobile menu
+            if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            if (closeMenuBtn) closeMenuBtn.addEventListener('click', closeMobileMenu);
+            if (overlay) overlay.addEventListener('click', closeMobileMenu);
             
             // Authentication
-            googleSignInBtn.addEventListener('click', handleAuthClick);
-            emailSignInBtn.addEventListener('click', handleEmailSignIn);
-            signUpLink.addEventListener('click', handleSignUp);
+            if (googleSignInBtn) googleSignInBtn.addEventListener('click', handleGoogleSignIn);
+            if (emailSignInBtn) emailSignInBtn.addEventListener('click', handleEmailSignIn);
+            if (signUpLink) signUpLink.addEventListener('click', handleSignUp);
             
-            // Test button (demo mode)
-            testButton.addEventListener('click', () => {
-                // Show the app layout for testing
-                loginContainer.style.display = 'none';
-                appContainer.style.display = 'block';
-                inputBox.disabled = false;
-                sendButton.disabled = false;
-                showMessage('System', 'Demo mode activated. You can test the chat functionality.', 'system');
-            });
+            // Chat functionality
+            if (sendButton) sendButton.addEventListener('click', handleSendMessage);
+            if (inputBox) {
+                inputBox.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                    }
+                });
+            }
+            
+            // Voice input
+            if (voiceButton) voiceButton.addEventListener('click', toggleVoiceInput);
+            if (stopRecording) stopRecording.addEventListener('click', stopVoiceInput);
+            
+            // Sign out buttons
+            if (signOutBtn) signOutBtn.addEventListener('click', handleSignOut);
+            if (mobileSignOutBtn) mobileSignOutBtn.addEventListener('click', handleSignOut);
             
             // Suggestion buttons
-            document.querySelectorAll('.suggestion-btn').forEach(button => {
+            const suggestionButtons = document.querySelectorAll('.suggestion-btn');
+            suggestionButtons.forEach(button => {
                 button.addEventListener('click', (e) => {
                     inputBox.value = e.target.textContent;
                     handleSendMessage();
@@ -360,76 +312,102 @@
             });
         }
         
-        // Toggle mobile menu
-        function toggleMobileMenu() {
-            mobileMenu.classList.add('show');
-            overlay.classList.add('show');
-            document.body.style.overflow = 'hidden';
+        // Screen management functions
+        function showWelcomeScreen() {
+            if (welcomeContainer) welcomeContainer.style.display = 'flex';
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (appContainer) appContainer.style.display = 'none';
         }
         
-        // Close mobile menu
-        function closeMobileMenu() {
-            mobileMenu.classList.remove('show');
-            overlay.classList.remove('show');
-            document.body.style.overflow = '';
+        function showLoginScreen() {
+            if (welcomeContainer) welcomeContainer.style.display = 'none';
+            if (loginContainer) loginContainer.style.display = 'flex';
+            if (appContainer) appContainer.style.display = 'none';
         }
         
-        // Handle send message
-        function handleSendMessage() {
-            const message = inputBox.value.trim();
-            if (!message) return;
-            
-            // Add user message to chat
-            showMessage('You', message, 'user');
-            inputBox.value = '';
-            
-            // Show typing indicator
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.style.display = 'flex';
-            
-            // Simulate AI response (replace with actual API call)
-            setTimeout(() => {
-                typingIndicator.style.display = 'none';
-                showMessage('Assistant', 'This is a demo response. In the full version, I would process your request and help you schedule events.', 'assistant');
-            }, 1500);
+        function showAppScreen() {
+            if (welcomeContainer) welcomeContainer.style.display = 'none';
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (appContainer) appContainer.style.display = 'block';
         }
         
-        // Toggle voice input
-        function toggleVoiceInput() {
-            if (!recognition) return;
-            
-            try {
-                recognition.start();
-                voiceButton.style.display = 'none';
-                voiceRecording.style.display = 'flex';
-            } catch (error) {
-                console.error('Error starting voice recognition:', error);
-                showMessage('System', 'Error: Could not access microphone. Please check permissions.', 'error');
+        function startDemoMode() {
+            isAuthenticated = true;
+            showAppScreen();
+            showMessage('System', 'Demo mode activated. You can test the chat functionality.', 'system');
+        }
+        
+        // Authentication handlers
+        function handleGoogleSignIn() {
+            if (tokenClient) {
+                tokenClient.requestAccessToken();
+            } else {
+                showMessage('System', 'Google Sign-In is not available. Please try again later.', 'error');
             }
         }
         
-        // Stop voice input
-        function stopVoiceInput() {
-            if (recognition) {
-                recognition.stop();
+        function handleEmailSignIn() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showMessage('System', 'Please enter both email and password.', 'error');
+                return;
             }
-            voiceRecording.style.display = 'none';
-            voiceButton.style.display = 'flex';
+            
+            showMessage('System', 'Email authentication is not implemented in this demo. Please use Google Sign-In or Demo Mode.', 'system');
+        }
+        
+        function handleSignUp(e) {
+            e.preventDefault();
+            showMessage('System', 'Account creation is not implemented in this demo. Please use Google Sign-In or Demo Mode.', 'system');
+        }
+        
+        function handleSignOut() {
+            const auth2 = gapi.auth2.getAuthInstance();
+            if (auth2) {
+                auth2.signOut().then(() => {
+                    console.log('User signed out.');
+                });
+            }
+            
+            // Clear any stored tokens
+            if (window.google && google.accounts) {
+                google.accounts.id.revoke(localStorage.getItem('google_id'), done => {
+                    console.log('Consent revoked');
+                });
+            }
+            
+            // Clear local state
+            isAuthenticated = false;
+            localStorage.removeItem('google_token');
+            
+            // Update UI
+            showLoginScreen();
+            closeMobileMenu();
+            showMessage('System', 'You have been signed out.', 'system');
         }
         
         // Show message in chat
         function showMessage(sender, text, type = 'user') {
             const messagesContainer = document.getElementById('messages');
+            if (!messagesContainer) return;
             
             // Create message element
             const messageElement = document.createElement('div');
             messageElement.className = `message ${type}`;
             
             // Add avatar for assistant messages
-            if (type === 'assistant') {
+            if (type === 'assistant' || type === 'system' || type === 'error' || type === 'success') {
                 const avatar = document.createElement('div');
                 avatar.className = 'message-avatar';
-                avatar.innerHTML = '<i class="fas fa-robot"></i>';
+                if (type === 'assistant') {
+                    avatar.innerHTML = '<i class="fas fa-robot"></i>';
+                } else if (type === 'system' || type === 'success') {
+                    avatar.innerHTML = '<i class="fas fa-info-circle"></i>';
+                } else if (type === 'error') {
+                    avatar.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                }
                 messageElement.appendChild(avatar);
             }
             
@@ -465,42 +443,393 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         
-        // Check authentication status
-        function checkAuthStatus() {
-            // In a real app, you would check for an existing session
-            // For now, we'll just show the login screen
-            loginContainer.style.display = 'flex';
-            appContainer.style.display = 'none';
-        }
-        
-        // Handle sign out
-        function handleSignOut() {
-            // In a real app, you would sign out from Google and clear the session
-            loginContainer.style.display = 'flex';
-            appContainer.style.display = 'none';
-            closeMobileMenu();
-            showMessage('System', 'You have been signed out.', 'system');
-        }
-        
-        // Handle email sign in
-        function handleEmailSignIn() {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
+        // Voice input functions
+        function toggleVoiceInput() {
+            if (!recognition) return;
             
-            if (!email || !password) {
-                showMessage('System', 'Please enter both email and password.', 'error');
+            try {
+                recognition.start();
+                voiceButton.style.display = 'none';
+                voiceRecording.style.display = 'flex';
+            } catch (error) {
+                console.error('Error starting voice recognition:', error);
+                showMessage('System', 'Error: Could not access microphone. Please check permissions.', 'error');
+            }
+        }
+        
+        function stopVoiceInput() {
+            if (recognition) {
+                recognition.stop();
+            }
+            voiceRecording.style.display = 'none';
+            voiceButton.style.display = 'flex';
+        }
+        
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            if (mobileMenu) mobileMenu.classList.add('show');
+            if (overlay) overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobileMenu() {
+            if (mobileMenu) mobileMenu.classList.remove('show');
+            if (overlay) overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // Initialize speech recognition if available
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (inputBox) inputBox.value = transcript;
+                handleSendMessage();
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showMessage('System', 'Error: Could not process voice input. Please try again.', 'error');
+            };
+        } else if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        
+        // Chat functionality
+        async function handleSendMessage() {
+            const message = inputBox.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            showMessage('You', message, 'user');
+            inputBox.value = '';
+            
+            // Show typing indicator
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) typingIndicator.style.display = 'flex';
+            
+            try {
+                // In a real app, you would send this to your backend for processing
+                // For now, we'll just create a simple event
+                if (message.toLowerCase().includes('schedule') || message.toLowerCase().includes('meeting')) {
+                    if (!isAuthenticated) {
+                        showMessage('System', 'Please sign in to schedule events.', 'error');
+                        return;
+                    }
+                    
+                    // Create a sample event (in a real app, you'd parse the message)
+                    const eventDetails = {
+                        summary: 'Meeting',
+                        description: 'Scheduled via Smart Scheduler',
+                        startDateTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                        endDateTime: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString()
+                    };
+                    
+                    const event = await createCalendarEvent(eventDetails);
+                    const eventLink = event.htmlLink;
+                    
+                    showMessage('Assistant', `I've scheduled your meeting! You can view it here: <a href="${eventLink}" target="_blank">View Event</a>`, 'assistant');
+                } else {
+                    showMessage('Assistant', 'I can help you schedule events in your Google Calendar. Try saying "Schedule a meeting tomorrow at 2pm"', 'assistant');
+                }
+            } catch (error) {
+                console.error('Error processing message:', error);
+                showMessage('System', 'An error occurred while processing your request. Please try again.', 'error');
+            } finally {
+        let gapiInited = false;
+        let gisInited = false;
+        
+        // Initialize Google APIs when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load the Google API client library and set up sign-in
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.onload = () => {
+                gapi.load('client:auth2', initializeGapiClient);
+            };
+            document.head.appendChild(script);
+            
+            // Load the Google Identity Services library
+            const gisScript = document.createElement('script');
+            gisScript.src = 'https://accounts.google.com/gsi/client';
+            gisScript.async = true;
+            gisScript.defer = true;
+            gisScript.onload = initializeGis;
+            document.head.appendChild(gisScript);
+        });
+        
+        // Initialize the Google API client
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                console.log('Google API client initialized');
+                maybeEnableSignIn();
+            } catch (error) {
+                console.error('Error initializing Google API client:', error);
+                showMessage('System', 'Error initializing Google services. Please try again later.', 'error');
+            }
+        }
+        
+        // Initialize Google Identity Services
+        function initializeGis() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                prompt: 'select_account',
+                callback: (response) => {
+                    if (response && response.access_token) {
+                        // User is signed in
+                        isAuthenticated = true;
+                        showAppScreen();
+                        loadUserProfile();
+                        showMessage('System', 'Successfully signed in! How can I help you schedule today?', 'success');
+                    }
+                }
+            });
+            gisInited = true;
+            console.log('Google Identity Services initialized');
+            maybeEnableSignIn();
+        }
+        
+        // Enable the sign-in button if both libraries are loaded
+        function maybeEnableSignIn() {
+            if (gapiInited && gisInited) {
+                if (googleSignInBtn) {
+                    googleSignInBtn.disabled = false;
+                }
+            }
+        }
+        
+        // Handle Google Sign-In
+        function handleGoogleSignIn() {
+            if (!tokenClient) {
+                showMessage('System', 'Google Sign-In is not available. Please try again later.', 'error');
                 return;
             }
             
-            // In a real app, you would validate credentials with your backend
-            showMessage('System', 'Email authentication is not implemented in this demo. Please use Google Sign-In.', 'system');
+            // Request access token
+            tokenClient.requestAccessToken();
         }
         
-        // Handle sign up
-        function handleSignUp(e) {
-            e.preventDefault();
-            showMessage('System', 'Account creation is not implemented in this demo. Please use Google Sign-In.', 'system');
+        // Load the user's profile
+        async function loadUserProfile() {
+            try {
+                const response = await gapi.client.people.people.get({
+                    resourceName: 'people/me',
+                    personFields: 'names,emailAddresses,photos'
+                });
+                
+                const profile = response.result;
+                const name = profile.names[0].displayName;
+                const email = profile.emailAddresses[0].value;
+                const photoUrl = profile.photos && profile.photos[0] ? profile.photos[0].url : '';
+                
+                // Update UI with user info
+                const userNameElements = document.querySelectorAll('#userName, #mobileUserName');
+                const userAvatarElements = document.querySelectorAll('#userAvatar, #mobileUserAvatar');
+                const userEmailElement = document.querySelector('#mobileUserEmail');
+                
+                userNameElements.forEach(el => el.textContent = name);
+                userAvatarElements.forEach(el => {
+                    if (photoUrl) {
+                        el.src = photoUrl;
+                        el.style.display = 'block';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+                
+                if (userEmailElement) {
+                    userEmailElement.textContent = email;
+                }
+                
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+            }
         }
+        
+        // Create a calendar event
+        async function createCalendarEvent(eventDetails) {
+            if (!isAuthenticated) {
+                showMessage('System', 'Please sign in to create events.', 'error');
+                return;
+            }
+            
+            try {
+                const event = {
+                    'summary': eventDetails.summary || 'New Event',
+                    'location': eventDetails.location || '',
+                    'description': eventDetails.description || '',
+                    'start': {
+                        'dateTime': eventDetails.startDateTime || new Date().toISOString(),
+                        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
+                    },
+                    'end': {
+                        'dateTime': eventDetails.endDateTime || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
+                    },
+                    'attendees': eventDetails.attendees || [],
+                    'reminders': {
+                        'useDefault': true
+                    }
+                };
+                
+                const request = gapi.client.calendar.events.insert({
+                    'calendarId': 'primary',
+                    'resource': event
+                });
+                
+                const response = await request;
+                console.log('Event created:', response);
+                return response.result;
+                
+            } catch (error) {
+                console.error('Error creating event:', error);
+                throw error;
+            }
+        }
+        
+        // Add CSS for the chat interface
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Chat message styles */
+            .message {
+                display: flex;
+                margin-bottom: 16px;
+                max-width: 85%;
+            }
+            
+            .message.user {
+                margin-left: auto;
+                flex-direction: row-reverse;
+            }
+            
+            .message-avatar {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background-color: #6366f1;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 8px;
+                flex-shrink: 0;
+            }
+            
+            .message-content {
+                background-color: #f3f4f6;
+                border-radius: 12px;
+                padding: 12px 16px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+            
+            .user .message-content {
+                background-color: #6366f1;
+                color: white;
+            }
+            
+            .message-sender {
+                font-weight: 600;
+                font-size: 0.875rem;
+                margin-bottom: 4px;
+            }
+            
+            .message-text {
+                font-size: 0.9375rem;
+                line-height: 1.5;
+            }
+            
+            .message-time {
+                font-size: 0.75rem;
+                color: #6b7280;
+                text-align: right;
+                margin-top: 4px;
+            }
+            
+            .user .message-time {
+                color: rgba(255, 255, 255, 0.8);
+            }
+            
+            /* Typing indicator */
+            .typing-indicator {
+                display: none;
+                align-items: center;
+                margin-bottom: 16px;
+            }
+            
+            .typing-dot {
+                width: 8px;
+                height: 8px;
+                background-color: #9ca3af;
+                border-radius: 50%;
+                margin: 0 2px;
+                animation: typing 1.4s infinite ease-in-out;
+            }
+            
+            .typing-dot:nth-child(1) { animation-delay: 0s; }
+            .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+            .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+            
+            @keyframes typing {
+                0%, 60%, 100% { transform: translateY(0); }
+                30% { transform: translateY(-6px); }
+            }
+            
+            /* Voice recording indicator */
+            .voice-recording {
+                display: none;
+                align-items: center;
+                justify-content: center;
+                padding: 12px;
+                background-color: #fef2f2;
+                border-radius: 12px;
+                margin: 12px 0;
+            }
+            
+            .recording-indicator {
+                display: flex;
+                align-items: center;
+                color: #dc2626;
+                font-weight: 500;
+            }
+            
+            .pulse {
+                width: 12px;
+                height: 12px;
+                background-color: #dc2626;
+                border-radius: 50%;
+                margin-right: 8px;
+                animation: pulse 1.5s infinite;
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(0.95); opacity: 0.8; }
+                70% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(0.95); opacity: 0.8; }
+            }
+            
+            .stop-recording {
+                background: none;
+                border: none;
+                color: #dc2626;
+                cursor: pointer;
+                margin-left: 16px;
+                font-size: 1.25rem;
+            }
+        `;
+        document.head.appendChild(style);
         
         // Google API client initialization
         function gapiLoaded() {
