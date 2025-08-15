@@ -1,941 +1,536 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Smart Scheduler</title>
     
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="./manifest.json" />
-    <meta name="theme-color" content="#667eea" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Smart Scheduler" />
-    <!-- <link rel="apple-touch-icon" href="./icon-192.png" /> -->
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- Mobile Optimizations -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="format-detection" content="telephone=no" />
-    
-    <!-- Google API Scripts - Loaded with proper error handling -->
-    <script>
-      // Global state
-      let gapiInited = false;
-      let gisInited = false;
-      let tokenClient = null;
-      let accessToken = null;
-      
-      // Configuration - Using environment variables would be better in production
-      const API_KEY = 'AIzaSyBq1W8rv77mcFyZqYbsrEBJxYm6nvpdxcQ';
-      const CLIENT_ID = '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com';
-      const SCOPES = [
-        'https://www.googleapis.com/auth/calendar',
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/contacts.readonly'  // For People API
-      ].join(' ');
-      
-      // Function to initialize Google API client
-      function initClient() {
-        gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          scope: SCOPES,
-          discoveryDocs: [
-            'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
-            'https://people.googleapis.com/$discovery/rest?version=v1'
-          ]
-        }).then(function() {
-          gapiInited = true;
-          console.log('Google API client initialized');
-          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        }).catch(function(error) {
-          console.error('Error initializing Google API client:', error);
-          showError('Failed to initialize Google services. Please refresh the page.');
-        });
-      }
-      
-      // Load the Google API client library and GIS
-      function loadGoogleApi() {
-        return new Promise((resolve, reject) => {
-          // Load Google API client
-          const gapiScript = document.createElement('script');
-          gapiScript.src = 'https://apis.google.com/js/api.js';
-          gapiScript.async = true;
-          gapiScript.defer = true;
-          
-          // Load Google Identity Services
-          const gisScript = document.createElement('script');
-          gisScript.src = 'https://accounts.google.com/gsi/client';
-          gisScript.async = true;
-          gisScript.defer = true;
-          
-          let gapiLoaded = false;
-          let gisLoaded = false;
-          
-          function checkAllLoaded() {
-            if (gapiLoaded && gisLoaded) {
-              console.log('Both Google API and GIS loaded');
-              resolve();
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.5;
+            color: #1e293b;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Login container */
+        #loginContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .login-card h1 {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            color: #1e293b;
+        }
+        
+        .login-card p {
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+        
+        #google-signin-button {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        /* Chat container */
+        #appLayout {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        /* Header */
+        .app-header {
+            padding: 1rem 1.5rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .sign-out-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .sign-out-btn:hover {
+            background: #e2e8f0;
+        }
+        
+        /* Chat area */
+        #chatContainer {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #f8fafc;
+        }
+        
+        .message {
+            margin-bottom: 1.5rem;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .assistant-message {
+            margin-right: auto;
+        }
+        
+        .message-content {
+            display: inline-block;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+        
+        .user-message .message-content {
+            background: #6366f1;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+        
+        .assistant-message .message-content {
+            background: white;
+            color: #1e293b;
+            border-bottom-left-radius: 0.25rem;
+        }
+        
+        /* Input area */
+        #inputContainer {
+            padding: 1rem 1.5rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        #inputBox {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        
+        #inputBox:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        
+        #sendButton, #voiceButton {
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 50%;
+            background: #6366f1;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        #sendButton:hover, #voiceButton:hover {
+            background: #4f46e5;
+        }
+        
+        #sendButton:disabled, #voiceButton:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+        
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.75rem 1rem;
+            background: white;
+            border-radius: 1rem;
+            width: fit-content;
+            margin-bottom: 1.5rem;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .login-card {
+                padding: 1.5rem;
             }
-          }
-          
-          gapiScript.onload = function() {
-            console.log('Google API client loaded');
-            gapi.load('client:auth2', {
-              callback: function() {
-                gapiLoaded = true;
-                initClient();
-                checkAllLoaded();
-              },
-              onerror: function(error) {
-                console.error('Error loading gapi client:', error);
-                reject(error);
-              },
-              timeout: 10000,
-              ontimeout: function() {
-                console.error('Timeout loading gapi client');
-                reject(new Error('Timeout loading Google API client'));
-              }
-            });
-          };
-          
-          gapiScript.onerror = function() {
-            console.error('Failed to load Google API client');
-            reject(new Error('Failed to load Google API client'));
-          };
-          
-          gisScript.onload = function() {
-            console.log('Google Identity Services loaded');
-            gisLoaded = true;
-            checkAllLoaded();
-          };
-          
-          gisScript.onerror = function() {
-            console.error('Failed to load Google Identity Services');
-            reject(new Error('Failed to load Google Identity Services'));
-          };
-          
-          // Add both scripts to the page
-          document.head.appendChild(gapiScript);
-          document.head.appendChild(gisScript);
-        });
-      }
-      
-      // Update UI based on sign-in status
-      function updateSigninStatus(isSignedIn) {
-        const signinButton = document.getElementById('authorizeButton');
-        if (signinButton) {
-          signinButton.style.display = isSignedIn ? 'none' : 'flex';
-        }
-        if (isSignedIn) {
-          handleAuthSuccess();
-        }
-      }
-      
-      // Handle successful authentication
-      async function handleAuthSuccess() {
-        console.log('Authentication successful');
-        try {
-          // Load user profile
-          await loadUserProfile();
-          
-          // Show main app UI
-          const loginContainer = document.getElementById('loginContainer');
-          const appLayout = document.getElementById('appLayout');
-          if (loginContainer) loginContainer.style.display = 'none';
-          if (appLayout) appLayout.style.display = 'flex';
-          
-          // Initialize other components
-          setupNavigation();
-          setupTabs();
-          
-          console.log('App initialized successfully');
-        } catch (error) {
-          console.error('Error initializing app:', error);
-          showError('Error initializing the application. Please try again.');
-        }
-      }
-      
-      // Initialize Google Sign-In when the page loads
-      document.addEventListener('DOMContentLoaded', async function() {
-        console.log('DOM fully loaded');
-        
-        try {
-          // Set up sign-in button first so it's ready when scripts load
-          const signInButton = document.getElementById('authorizeButton');
-          if (signInButton) {
-            signInButton.onclick = handleAuthClick;
-            signInButton.disabled = true; // Disable until scripts are loaded
-            signInButton.innerHTML = 'Loading Google services...';
-          }
-          
-          // Load Google API and GIS
-          await loadGoogleApi();
-          
-          // Enable sign-in button once everything is loaded
-          if (signInButton) {
-            signInButton.disabled = false;
-            signInButton.innerHTML = 'Continue with Google';
-          }
-          
-          console.log('Google services initialized successfully');
-        } catch (error) {
-          console.error('Error initializing Google services:', error);
-          showError('Failed to load Google services. Please refresh the page.');
-          
-          const signInButton = document.getElementById('authorizeButton');
-          if (signInButton) {
-            signInButton.disabled = false;
-            signInButton.innerHTML = 'Error - Click to Retry';
-          }
-        }
-      });
-      
-      // Initialize Google APIs
-      function initializeGoogleAPIs() {
-        console.log('Initializing Google APIs...');
-        
-        // Check if Google API is loaded
-        if (typeof google === 'undefined' || !google.accounts) {
-          console.error('Google API not loaded');
-          showError('Google authentication services failed to load. Please refresh the page.');
-          return;
-        }
-        
-        // Initialize Google Identity Services
-        try {
-          // Create token client
-          window.tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (response) => {
-              if (response.error) {
-                console.error('OAuth error:', response.error);
-                showError('Failed to sign in. Please try again.');
-                return;
-              }
-              accessToken = response.access_token;
-              handleAuthSuccess();
-            },
-            error_callback: (error) => {
-              console.error('OAuth error callback:', error);
-              showError('Authentication error. Please try again.');
-            }
-          });
-          
-          // Enable sign-in button
-          enableSignInButton();
-          
-          console.log('Google APIs initialized');
-          
-        } catch (error) {
-          console.error('Failed to initialize Google APIs:', error);
-          showError('Failed to initialize authentication. Please refresh the page.');
-        }
-      }
-      
-      // Check if both scripts are loaded
-      function checkInitialization() {
-        if (window.gapi && window.gapi.load && window.google && window.google.accounts) {
-          initializeGoogleAPIs();
-        } else {
-          setTimeout(checkInitialization, 100);
-        }
-      }
-      
-      // Load Google API scripts
-      function loadGoogleScripts() {
-        console.log('Loading Google API scripts...');
-        
-        // Load Google Identity Services first (required for OAuth)
-        const gisScript = document.createElement('script');
-        gisScript.src = 'https://accounts.google.com/gsi/client';
-        gisScript.async = true;
-        gisScript.defer = true;
-        
-        gisScript.onload = function() {
-          console.log('Google Identity Services loaded');
-          
-          // Now load the Google API client
-          const gapiScript = document.createElement('script');
-          gapiScript.src = 'https://apis.google.com/js/api.js';
-          gapiScript.async = true;
-          gapiScript.defer = true;
-          
-          gapiScript.onload = function() {
-            console.log('Google API client loaded');
-            // Initialize Google APIs
-            initializeGoogleAPIs();
-          };
-          
-          gapiScript.onerror = function() {
-            console.error('Failed to load Google API client');
-            showError('Failed to load required Google services. Please refresh the page.');
-          };
-          
-          document.head.appendChild(gapiScript);
-        };
-        
-        gisScript.onerror = function() {
-          console.error('Failed to load Google Identity Services');
-          showError('Failed to load authentication services. Please check your internet connection and refresh the page.');
-        };
-        
-        document.head.appendChild(gisScript);
-      }
-      
-      // Initialize Google API Client
-      function initializeGAPI() {
-        gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          discoveryDocs: DISCOVERY_DOCS,
-          scope: SCOPES
-        }).then(() => {
-          console.log('Google API client initialized');
-          window.gapiInited = true;
-          maybeEnableButtons();
-        }).catch(error => {
-          console.error('Error initializing Google API client:', error);
-          showError('Error initializing Google services: ' + error.message);
-        });
-      }
-      
-      // Initialize Google Identity Services
-      function initializeGIS() {
-        try {
-          tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (response) => {
-              if (response.error) {
-                console.error('OAuth error:', response.error);
-                showError('Authentication error: ' + response.error);
-                return;
-              }
-              accessToken = response.access_token;
-              if (gapi.client) {
-                gapi.client.setToken({ access_token: accessToken });
-              }
-              handleAuthSuccess();
-            },
-            error_callback: (error) => {
-              console.error('OAuth error callback:', error);
-              showError('Authentication error: ' + (error.message || 'Unknown error'));
-            }
-          });
-          console.log('Google Identity Services initialized');
-          window.gisInited = true;
-          maybeEnableButtons();
-        } catch (error) {
-          console.error('Error initializing Google Identity Services:', error);
-          showError('Error initializing authentication: ' + error.message);
-        }
-      }
-      
-      // Initialize Google API client
-      function initializeGAPI() {
-        gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          discoveryDocs: DISCOVERY_DOCS,
-          scope: SCOPES
-        }).then(function() {
-          console.log('Google API client initialized');
-          gapiInited = true;
-          maybeEnableButtons();
-        }).catch(function(error) {
-          console.error('Error initializing Google API client:', error);
-          showError('Error initializing Google services: ' + error.message);
-        });
-      }
-      
-      // Initialize Google Identity Services
-      function initializeGIS() {
-        try {
-          if (typeof google === 'undefined' || !google.accounts) {
-            console.error('Google Identity Services not loaded');
-            return;
-          }
-          
-          console.log('Initializing Google Identity Services...');
-          tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: function(response) {
-              if (response.error) {
-                console.error('OAuth error:', response.error);
-                showError('Authentication error: ' + response.error);
-                return;
-              }
-              
-              console.log('OAuth token received');
-              accessToken = response.access_token;
-              
-              // Set the token for gapi client
-              if (gapi.client) {
-                gapi.client.setToken({ access_token: accessToken });
-              }
-              
-              // Handle successful authentication
-              handleAuthSuccess();
-            },
-            error_callback: function(error) {
-              console.error('OAuth error callback:', error);
-              showError('Authentication error: ' + (error.message || 'Unknown error'));
-            }
-          });
-          
-          gisInited = true;
-          console.log('Google Identity Services initialized');
-          maybeEnableButtons();
-          
-        } catch (error) {
-          console.error('Error initializing Google Identity Services:', error);
-          showError('Error initializing authentication: ' + error.message);
-        }
-      }
-      
-      // Show error message to user
-      function showError(message) {
-        console.error('Error:', message);
-        const loginContainer = document.getElementById('loginContainer');
-        if (loginContainer) {
-          // Remove any existing error messages
-          const existingErrors = loginContainer.querySelectorAll('.error-message');
-          existingErrors.forEach(el => el.remove());
-          
-          const errorMessage = document.createElement('div');
-          errorMessage.className = 'error-message';
-          errorMessage.style.cssText = 'color: #ff4444; margin: 20px 0; padding: 15px; background: #ffebee; border-radius: 8px; border-left: 4px solid #f44336;';
-          errorMessage.innerHTML = `
-            <strong>Error:</strong> ${message}
-            <div style="margin-top: 10px; font-size: 0.9em;">
-              <button onclick="location.reload()" style="background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                Refresh Page
-              </button>
-            </div>
-          `;
-          
-          loginContainer.insertBefore(errorMessage, loginContainer.firstChild);
-          
-          // Scroll to the error message
-          setTimeout(() => {
-            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-        } else {
-          alert(message);
-        }
-      }
-      
-      // Enable sign-in button
-      function enableSignInButton() {
-        const authButton = document.getElementById('authorize_button');
-        if (authButton) {
-          authButton.onclick = handleAuthClick;
-          authButton.disabled = false;
-          authButton.textContent = 'Sign in with Google';
-          console.log('Sign-in button enabled');
-        }
-      }
-      
-      // Handle sign-in button click
-      function handleAuthClick(event) {
-        if (event) event.preventDefault();
-        
-        const authButton = document.getElementById('authorizeButton');
-        if (!authButton) {
-          console.error('Sign-in button not found');
-          showError('Sign-in button not found. Please refresh the page.');
-          return false;
-        }
-        
-        // Show loading state
-        const originalText = authButton.innerHTML;
-        authButton.disabled = true;
-        authButton.innerHTML = '<span class="spinner"></span> Signing in...';
-        
-        // Check if Google API is loaded
-        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-          console.error('Google API not properly loaded');
-          showError('Google authentication services not available. Please refresh the page.');
-          authButton.disabled = false;
-          authButton.innerHTML = originalText;
-          return false;
-        }
-        
-        // Initialize token client if not already done
-        if (!window.tokenClient) {
-          try {
-            window.tokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: CLIENT_ID,
-              scope: SCOPES,
-              callback: (response) => {
-                if (response.error) {
-                  console.error('OAuth error:', response.error);
-                  showError('Failed to sign in. Please try again.');
-                  const btn = document.getElementById('authorizeButton');
-                  if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Continue with Google';
-                  }
-                  return;
-                }
-                // Success - store the token and proceed
-                accessToken = response.access_token;
-                console.log('OAuth token received');
-                handleAuthSuccess();
-              },
-              error_callback: (error) => {
-                console.error('OAuth error callback:', error);
-                showError('Authentication error. Please try again.');
-                const btn = document.getElementById('authorizeButton');
-                if (btn) {
-                  btn.disabled = false;
-                  btn.innerHTML = 'Continue with Google';
-                }
-              }
-            });
-          } catch (error) {
-            console.error('Error initializing token client:', error);
-            showError('Failed to initialize authentication. Please refresh the page.');
-            const btn = document.getElementById('authorizeButton');
-            if (btn) {
-              btn.disabled = false;
-              btn.innerHTML = 'Continue with Google';
-            }
-            return false;
-          }
-        }
-        
-        // Request token
-        try {
-          console.log('Requesting access token...');
-          window.tokenClient.requestAccessToken();
-        } catch (error) {
-          console.error('Error requesting token:', error);
-          showError('Failed to start sign in. Please try again.');
-          const btn = document.getElementById('authorizeButton');
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = 'Continue with Google';
-          }
-        }
-        
-        return false;
-      }
-
-      // Handle successful authentication
-      function handleAuthSuccess() {
-        console.log('Authentication successful');
-        
-        // Hide login container and show app layout
-        const loginContainer = document.getElementById('loginContainer');
-        const appLayout = document.getElementById('appLayout');
-        const inputContainer = document.getElementById('inputContainer');
-        
-        if (loginContainer) loginContainer.style.display = 'none';
-        if (appLayout) appLayout.style.display = 'block';
-        if (inputContainer) inputContainer.style.display = 'flex';
-        
-        // Load user profile
-        loadUserProfile();
-        
-        // Initialize the rest of the app
-        initializeApp();
-      }
-
-      // Initialize the rest of the app after authentication
-      function initializeApp() {
-        setupNavigation();
-        setupTabs();
-        initializeDashboard();
-        createParticles();
-      }
-
-      // Handle sign out
-      function handleSignout() {
-        console.log('Signing out...');
-        
-        // Clear any stored tokens
-        if (window.gapi && gapi.auth2) {
-          const auth2 = gapi.auth2.getAuthInstance();
-          if (auth2) {
-            auth2.signOut().then(() => {
-              console.log('User signed out from Google');
-            });
-          }
-        }
-        
-        // Clear local state
-        accessToken = null;
-        gapiInited = false;
-        gisInited = false;
-        
-        // Reset UI
-        const loginContainer = document.getElementById('loginContainer');
-        const appLayout = document.getElementById('appLayout');
-        
-        if (loginContainer) loginContainer.style.display = 'flex';
-        if (appLayout) appLayout.style.display = 'none';
-        
-        // Clear any stored data
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user_profile');
-        
-        console.log('Sign out complete');
-      }
-
-      // Load user profile information
-      function loadUserProfile() {
-        if (!gapi.client) {
-          console.error('Google API client not initialized');
-          return;
-        }
-        
-        // Try to get user info from Google People API
-        gapi.client.people.people.get({
-          resourceName: 'people/me',
-          personFields: 'names,emailAddresses,photos'
-        }).then(function(response) {
-          const profile = response.result;
-          console.log('User profile:', profile);
-          
-          // Update UI with user info
-          const name = profile.names?.[0]?.displayName || 'User';
-          const email = profile.emailAddresses?.[0]?.value || '';
-          const photoUrl = profile.photos?.[0]?.url || '';
-          
-          updateUserProfileUI(name, photoUrl);
-          
-        }).catch(function(error) {
-          console.error('Error loading user profile:', error);
-          // Fallback to basic user info
-          gapi.client.oauth2.userinfo.get().then(function(response) {
-            const profile = response.result;
-            updateUserProfileUI(profile.name, profile.picture);
-          }).catch(function() {
-            // If all else fails, just show a generic welcome
-            updateUserProfileUI('User', '');
-          });
-        });
-      }
-
-      // Update the UI with user profile information
-      function updateUserProfileUI(name, photoUrl) {
-        const welcomeName = document.getElementById('welcomeName');
-        const userAvatar = document.getElementById('userAvatar');
-        
-        if (welcomeName) welcomeName.textContent = name;
-        
-        if (userAvatar) {
-          userAvatar.innerHTML = '';
-          userAvatar.style.display = 'flex';
-          
-          if (photoUrl) {
-            const img = document.createElement('img');
-            img.src = photoUrl;
-            img.alt = name;
-            img.onload = () => userAvatar.classList.add('visible');
-            userAvatar.appendChild(img);
-          } else {
-            // Fallback to initials
-            const initials = name.split(' ')
-              .map(part => part[0])
-              .join('')
-              .toUpperCase()
-              .substring(0, 2);
-              
-            // Clear any previous error messages
-            const errorMessages = document.querySelectorAll('.error-message');
-            errorMessages.forEach(el => el.remove());
             
-              try {
-                if (!tokenClient) {
-                  throw new Error('Google Sign-In is not ready. Please refresh the page and try again.');
-                }
-                
-                console.log('Requesting access token with scopes:', SCOPES);
-                
-                // Request the token
-                tokenClient.requestAccessToken();
-                
-              } catch (error) {
-                console.error('Sign-in error:', error);
-                showError('Error during sign-in: ' + (error.message || 'Unknown error'));
-                
-                // Reset button state
-                if (authButton) {
-                  authButton.innerHTML = originalText;
-                  authButton.disabled = false;
-                }
-              }
-              
-              return false;
+            .message {
+                max-width: 90%;
             }
-      
-      // Handle successful authentication
-      function handleAuthSuccess() {
-        console.log('Authentication successful');
-        
-        // Hide login container and show app layout
-        const loginContainer = document.getElementById('loginContainer');
-        const appLayout = document.getElementById('appLayout');
-        const inputContainer = document.getElementById('inputContainer');
-        
-        if (loginContainer) loginContainer.style.display = 'none';
-        if (appLayout) appLayout.style.display = 'block';
-        if (inputContainer) inputContainer.style.display = 'flex';
-        
-        // Load user profile
-        loadUserProfile();
-        
-        // Initialize the rest of the app
-        initializeApp();
-      }
-      
-      // Initialize the rest of the app after authentication
-      function initializeApp() {
-        setupNavigation();
-        setupTabs();
-        initializeDashboard();
-        createParticles();
-      }
-      
-      // Handle sign out
-      function handleSignout() {
-        console.log('Signing out...');
-        
-        // Clear any stored tokens
-        if (window.gapi && gapi.auth2) {
-          const auth2 = gapi.auth2.getAuthInstance();
-          if (auth2) {
-            auth2.signOut().then(() => {
-              console.log('User signed out from Google');
-            });
-          }
+            
+            #inputContainer {
+                padding: 0.75rem 1rem;
+            }
+            
+            #inputBox {
+                padding: 0.625rem 0.875rem;
+                font-size: 0.875rem;
+            }
+            
+            #sendButton, #voiceButton {
+                width: 36px;
+                height: 36px;
+            }
+        }
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        // Clear local state
-        accessToken = null;
-        gapiInited = false;
-        gisInited = false;
-        
-        // Reset UI
-        const loginContainer = document.getElementById('loginContainer');
-        const appLayout = document.getElementById('appLayout');
-        
-        if (loginContainer) loginContainer.style.display = 'flex';
-        if (appLayout) appLayout.style.display = 'none';
-        
-        // Clear any stored data
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user_profile');
-        
-        console.log('Sign out complete');
-      }
-      
-      // Load user profile information
-      async function loadUserProfile() {
-        console.log('Loading user profile...');
-        
-        try {
-          // Make sure gapi client is initialized
-          if (!gapi.client) {
-            throw new Error('Google API client not initialized');
-          }
-          
-          // Get the user's profile information
-          const response = await gapi.client.people.people.get({
-            resourceName: 'people/me',
-            personFields: 'names,emailAddresses,photos'
-          });
-          
-          const profile = response.result;
-          console.log('User profile loaded:', profile);
-          
-          // Update UI with user info
-          const userName = profile.names ? profile.names[0].displayName : 'User';
-          const email = profile.emailAddresses ? profile.emailAddresses[0].value : '';
-          const photoUrl = profile.photos ? profile.photos[0].url : '';
-          
-          // Update UI elements
-          updateUserProfileUI(userName, photoUrl, email);
-          
-          return profile;
-          
-        } catch (error) {
-          console.error('Error loading user profile:', error);
-          
-          // Set default values
-          updateUserProfileUI('User', null, '');
-          
-          // Only show error if it's not a network issue
-          if (!navigator.onLine) {
-            console.warn('Network is offline, using cached profile data');
-          } else {
-            showError('Could not load your profile information. Some features may be limited.');
-          }
-          
-          throw error; // Re-throw to be handled by the caller
-        }
-      }
-      
-      // Update user profile UI elements
-      function updateUserProfileUI(userName, photoUrl = null, email = '') {
-        const userNameElements = document.querySelectorAll('.user-name');
-        const userEmailElements = document.querySelectorAll('.user-email');
-        const userAvatarElements = document.querySelectorAll('.user-avatar');
-        const welcomeNameElements = document.querySelectorAll('#welcomeName');
-        
-        // Update welcome message with user's name
-        welcomeNameElements.forEach(el => {
-          if (el) el.textContent = userName;
-        });
-        
-        // Update user info in the sidebar
-        userNameElements.forEach(el => el.textContent = userName);
-        userEmailElements.forEach(el => el.textContent = email);
-        
-        // Update avatar
-        if (photoUrl) {
-          userAvatarElements.forEach(el => {
-            el.innerHTML = `<img src="${photoUrl}" alt="${userName}" onerror="this.onerror=null; this.textContent='${userName.substring(0, 2).toUpperCase()}';">`;
-          });
-        } else {
-          // Fallback to initials
-          const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-          userAvatarElements.forEach(el => {
-            el.textContent = initials;
-            el.style.backgroundColor = getRandomColor();
-          });
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.5;
+            color: #1e293b;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
-        // Make sure the welcome message is visible
-        const welcomeMessage = document.querySelector('.welcome-message');
-        if (welcomeMessage) {
-          welcomeMessage.style.display = 'block';
+        /* Login container */
+        #loginContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
         }
-      }
-      
-      // Helper function to generate a random color for avatar backgrounds
-      function getRandomColor() {
-        const colors = [
-          '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
-          '#D4A5A5', '#9B786F', '#E8C07D', '#9C914F', '#D4D4D4'
-        ];
-        return colors[Math.floor(Math.random() * colors.length)];
-      }
+        
+        .login-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
         }
-      }
-      
-      // Setup all event listeners in one place
-      function setupEventListeners() {
-        console.log('Setting up event listeners');
         
-        // Sign-in button - use event delegation for dynamic elements
-        document.addEventListener('click', function(event) {
-          // Check if the clicked element or its parent is the authorize button
-          if (event.target.closest('#authorize_button')) {
-            console.log('Authorize button clicked');
-            event.preventDefault();
-            handleAuthClick(event);
-            return false;
-          }
-          // Check if the clicked element or its parent is the sign-out button
-          else if (event.target.closest('#signout_button') || event.target.closest('#signOutBtn')) {
-            console.log('Sign out button clicked');
-            event.preventDefault();
-            handleSignout(event);
-            return false;
-          }
-          // Check if the clicked element or its parent is the voice button
-          else if (event.target.closest('.voice-btn')) {
-            console.log('Voice button clicked');
-            event.preventDefault();
-            toggleVoiceRecognition(event);
-            return false;
-          }
-        });
-        
-        // Also set up direct event listeners as a fallback
-        const authButton = document.getElementById('authorize_button');
-        if (authButton) {
-          authButton.onclick = function(event) {
-            event.preventDefault();
-            handleAuthClick(event);
-            return false;
-          };
-          console.log('Direct auth button listener set');
+        .login-card h1 {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            color: #1e293b;
         }
-      }
-      
-      // Start loading Google scripts when the page loads
-      document.addEventListener('DOMContentLoaded', async function() {
-        console.log('DOM fully loaded');
         
-        try {
-          // Load Google API scripts
-          console.log('Loading Google API scripts...');
-          await new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://accounts.google.com/gsi/client';
-            script.async = true;
-            script.defer = true;
-            script.onload = resolve;
-            script.onerror = () => {
-              console.error('Failed to load Google Identity Services');
-              showError('Failed to load authentication service. Please refresh the page.');
-            };
-            document.head.appendChild(script);
-          });
-          
-          // Load Google API client
-          await new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.async = true;
-            script.defer = true;
-            script.onload = () => {
-              gapi.load('client', resolve);
-            };
-            script.onerror = () => {
-              console.error('Failed to load Google API client');
-              showError('Failed to load Google services. Please refresh the page.');
-            };
-            document.head.appendChild(script);
-          });
-          
-          console.log('Initializing Google APIs...');
-          await initializeGoogleAPIs();
-          
-          // Initialize other components
-          setupNavigation();
-          setupTabs();
-          createParticles();
-          
-          console.log('App initialization complete');
-        } catch (error) {
-          console.error('Initialization error:', error);
-          showError('Failed to initialize the application. Please refresh the page.');
+        .login-card p {
+            color: #64748b;
+            margin-bottom: 2rem;
         }
-      });
-      
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
+        #google-signin-button {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        /* Chat container */
+        #appLayout {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        /* Header */
+        .app-header {
+            padding: 1rem 1.5rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .sign-out-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .sign-out-btn:hover {
+            background: #e2e8f0;
+        }
+        
+        /* Chat area */
+        #chatContainer {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #f8fafc;
+        }
+        
+        .message {
+            margin-bottom: 1.5rem;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .assistant-message {
+            margin-right: auto;
+        }
+        
+        .message-content {
+            display: inline-block;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+        
+        .user-message .message-content {
+            background: #6366f1;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+        
+        .assistant-message .message-content {
+            background: white;
+            color: #1e293b;
+            border-bottom-left-radius: 0.25rem;
+        }
+        
+        /* Input area */
+        #inputContainer {
+            padding: 1rem 1.5rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        #inputBox {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        
+        #inputBox:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        
+        #sendButton, #voiceButton {
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 50%;
+            background: #6366f1;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        #sendButton:hover, #voiceButton:hover {
+            background: #4f46e5;
+        }
+        
+        #sendButton:disabled, #voiceButton:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+        
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.75rem 1rem;
+            background: white;
+            border-radius: 1rem;
+            width: fit-content;
+            margin-bottom: 1.5rem;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .login-card {
+                padding: 1.5rem;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            #inputContainer {
+                padding: 0.75rem 1rem;
+            }
+            
+            #inputBox {
+                padding: 0.625rem 0.875rem;
+                font-size: 0.875rem;
+            }
+            
+            #sendButton, #voiceButton {
+                width: 36px;
+                height: 36px;
+            }
+        }
         :root {
             --primary: #6366f1;
             --primary-light: #818cf8;
-            --primary-dark: #4338ca;
-            --secondary: #10b981;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
             --danger: #ef4444;
-            --light: #f9fafb;
-            --dark: #111827;
-            --gray: #6b7280;
-            --light-gray: #e5e7eb;
-            --border-radius: 12px;
+            --warning: #f59e0b;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
         
         * {
@@ -948,141 +543,113 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             line-height: 1.5;
             color: var(--dark);
-            background-color: var(--light);
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            overflow-x: hidden;
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            width: 100%;
-            flex: 1;
+        /* Layout */
+        .app-layout {
             display: flex;
-            flex-direction: column;
+            min-height: 100vh;
         }
         
-        /* Header */
-        header {
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
             background: white;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        .header-content {
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            padding: 1.5rem 0;
+            z-index: 10;
         }
         
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
+        .logo-container {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            margin-bottom: 1.5rem;
+        }
+        
+        .app-logo {
+            height: 40px;
+            width: auto;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0 1rem;
+            margin-bottom: auto;
+        }
+        
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: var(--gray-600);
             text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .user-actions {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .btn {
-            padding: 0.5rem 1rem;
-            border-radius: var(--border-radius);
-            border: none;
             font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
             transition: all 0.2s;
+            border: none;
+            background: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
         }
         
-        .btn-primary {
-            background: var(--primary);
+        .nav-button:hover {
+            background: var(--gray-100);
+            color: var(--primary);
+        }
+        
+        .nav-button.active {
+            background: var(--primary-light);
             color: white;
         }
         
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-        }
-        
-        .btn-outline:hover {
-            background: rgba(79, 70, 229, 0.1);
+        .nav-button i {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
         }
         
         /* Main Content */
         .main-content {
-            display: flex;
             flex: 1;
-            gap: 2rem;
-            padding: 2rem 0;
+            padding: 2rem;
+            overflow-y: auto;
         }
         
-        /* View Toggle */
-        .view-toggle {
+        /* Content Pages */
+        .content-page {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+        }
+        
+        .content-page.active {
             display: flex;
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 0.25rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
-        .view-toggle-btn {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-weight: 500;
-            color: var(--gray);
-            border-radius: calc(var(--border-radius) - 4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s;
-        }
-        
-        .view-toggle-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        /* Chat View */
+        /* Chat Container */
         .chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: white;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
             overflow: hidden;
-            height: calc(100vh - 200px);
-            min-height: 500px;
         }
         
         .chat-messages {
             flex: 1;
-            overflow-y: auto;
             padding: 1.5rem;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 1rem;
@@ -1090,158 +657,356 @@
         
         .message {
             max-width: 80%;
-            padding: 0.75rem 1rem;
-            border-radius: var(--border-radius);
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
             line-height: 1.5;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
         }
         
-        .message-user {
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--gray-100);
+            border-bottom-left-radius: 0.25rem;
+            color: var(--dark);
+        }
+        
+        .message.user {
             align-self: flex-end;
             background: var(--primary);
             color: white;
-            border-bottom-right-radius: 4px;
+            border-bottom-right-radius: 0.25rem;
         }
         
-        .message-assistant {
-            align-self: flex-start;
-            background: var(--light-gray);
-            color: var(--dark);
-            border-bottom-left-radius: 4px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .chat-input-container {
-            padding: 1rem;
-            border-top: 1px solid var(--light-gray);
+        /* Input Container */
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1.5rem;
+            background: white;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+            z-index: 20;
+        }
+        
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
             display: flex;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
         
-        .chat-input {
+        #inputBox {
             flex: 1;
-            padding: 0.75rem 1rem;
-            border: 1px solid var(--light-gray);
-            border-radius: var(--border-radius);
-            font-family: inherit;
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 0.75rem;
             font-size: 1rem;
+            line-height: 1.5;
+            transition: all 0.2s;
             resize: none;
-            min-height: 48px;
-            max-height: 150px;
+            min-height: 56px;
+            max-height: 200px;
+            overflow-y: auto;
         }
         
-        .chat-input:focus {
+        #inputBox:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
         }
         
-        .send-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: var(--border-radius);
+        .send-button, .voice-button {
             width: 48px;
             height: 48px;
+            border-radius: 0.75rem;
+            border: none;
+            background: var(--primary);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .send-btn:hover {
-            background: var(--primary-dark);
-        }
-        
-        .send-btn:disabled {
-            background: var(--gray);
-            cursor: not-allowed;
-        }
-        
-        /* Preview View */
-        .preview-container {
-            display: none;
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-            height: calc(100vh - 200px);
-            min-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .preview-container.active {
-            display: block;
-        }
-        
-        .event-preview {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
-        .event-preview h2 {
-            margin-bottom: 1.5rem;
-            color: var(--primary);
-        }
-        
-        .event-details {
-            background: var(--light);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .detail-row {
-            display: flex;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--light-gray);
-        }
-        
-        .detail-row:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        
-        .detail-label {
-            font-weight: 500;
-            color: var(--gray);
-            width: 120px;
+            transition: all 0.2s;
             flex-shrink: 0;
         }
         
-        .detail-value {
-            flex: 1;
+        .send-button:hover, .voice-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
         }
         
-        /* Loading State */
-        .loading {
-            display: inline-block;
-            width: 1.5rem;
-            height: 1.5rem;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+        .send-button:active, .voice-button:active {
+            transform: translateY(0);
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .send-button i, .voice-button i {
+            font-size: 1.25rem;
         }
         
-        /* Responsive */
+        /* Login Page */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        .login-header {
+            margin-bottom: 2rem;
+        }
+        
+        .login-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .login-logo i {
+            font-size: 2rem;
+        }
+        
+        .login-card h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-card p {
+            color: var(--gray-500);
+            margin-bottom: 2rem;
+        }
+        
+        .login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .google-signin-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.5rem;
+            background: white;
+            color: var(--dark);
+            border: 1px solid var(--gray-200);
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .google-signin-btn:hover {
+            background: var(--gray-50);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .google-signin-btn img {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .privacy-note {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            margin-top: 1.5rem;
+            line-height: 1.5;
+        }
+        
+        /* Animations */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .main-content {
+            .app-layout {
                 flex-direction: column;
-                padding: 1rem 0;
             }
             
-            .chat-container,
-            .preview-container {
-                height: auto;
-                min-height: 400px;
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                padding: 1rem;
+                border-bottom: 1px solid var(--gray-200);
+            }
+            
+            .logo-container {
+                display: none;
+            }
+            
+            .nav-buttons {
+                flex-direction: row;
+                justify-content: space-around;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .nav-button span {
+                display: none;
+            }
+            
+            .main-content {
+                padding: 1rem;
+                padding-bottom: 100px;
+            }
+            
+            .input-container {
+                padding: 1rem;
+            }
+            
+            .input-wrapper {
+                gap: 0.5rem;
+            }
+            
+            .send-button, .voice-button {
+                width: 44px;
+                height: 44px;
+            }
+            
+            .login-card {
+                padding: 1.5rem;
             }
         }
+        
+        /* Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #0f172a;
+                color: white;
+            }
+            
+            .sidebar {
+                background: #1e293b;
+                border-right: 1px solid #334155;
+            }
+            
+            .logo-container {
+                border-bottom-color: #334155;
+            }
+            
+            .nav-button {
+                color: #cbd5e1;
+            }
+            
+            .nav-button:hover {
+                background: #334155;
+                color: white;
+            }
+            
+            .nav-button.active {
+                background: #4f46e5;
+                color: white;
+            }
+            
+            .chat-container, .login-card {
+                background: #1e293b;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            }
+            
+            .message.assistant {
+                background: #334155;
+                color: #e2e8f0;
+            }
+            
+            .message.user {
+                background: #4f46e5;
+                color: white;
+            }
+            
+            #inputBox {
+                background: #1e293b;
+                border-color: #334155;
+                color: white;
+            }
+            
+            #inputBox::placeholder {
+                color: #94a3b8;
+            }
+            
+            .input-container {
+                background: #1e293b;
+                border-top: 1px solid #334155;
+            }
+            
+            .login-card h1 {
+                color: white;
+            }
+            
+            .login-card p {
+                color: #94a3b8;
+            }
+            
+            .google-signin-btn {
+                background: #334155;
+                color: white;
+                border-color: #475569;
+            }
+            
+            .google-signin-btn:hover {
+                background: #475569;
+            }
+            
+            .privacy-note {
+                color: #64748b;
+            }
+        }
+    </style>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="icon" href="./favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="./icon-192x192.png">
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no" />
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
         :root {
           --primary: #6366f1;
@@ -1307,53 +1072,6 @@
           overflow: hidden;
           margin: auto;
           text-align: center;
-        }
-        
-        .login-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* User Avatar Styles */
-        .user-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            background: #f0f2f5;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            font-weight: 600;
-            color: white;
-            overflow: hidden;
-            border: 3px solid #fff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        /* Animation for when avatar loads */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .user-avatar.visible {
-            animation: fadeIn 0.5s ease-out forwards;
         }
         
         /* App Layout */
@@ -2090,48 +1808,27 @@
             margin-bottom: 24px;
         }
         
-        .login-buttons .google-signin-btn {
+        .google-signin-btn {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
             width: 100%;
-            padding: 12px 24px;
-            background: #ffffff;
-            color: #1a1a1a;
-            border: 1px solid #e0e0e0;
+            padding: 14px 24px;
+            background: #fff;
+            color: #1f2937;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 1rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-        }
-        
-        .login-buttons .google-signin-btn.test-mode {
-            background: #f5f5f5;
-            margin-top: 12px;
-        }
-        
-        .signout-btn {
-            background: none;
-            border: none;
-            color: #9e9e9e;
-            cursor: pointer;
-            font-size: 18px;
-            padding: 8px;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-        
-        .signout-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         
         .google-signin-btn:hover {
             background: #f8fafc;
             transform: translateY(-1px);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
@@ -2155,258 +1852,12 @@
             color: #94a3b8;
             line-height: 1.5;
         }
-        
-        /* Welcome Preview Styles */
-        .welcome-preview {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            color: white;
-            text-align: center;
-            padding: 2rem;
-        }
-        
-        .welcome-content {
-            max-width: 500px;
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        
-        .welcome-logo {
-            margin-bottom: 2rem;
-        }
-        
-        .welcome-logo i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            color: white;
-        }
-        
-        .welcome-logo h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 0;
-        }
-        
-        .welcome-tagline {
-            font-size: 1.25rem;
-            margin-bottom: 2.5rem;
-            opacity: 0.9;
-        }
-        
-        /* Updated Welcome Message Styles */
-        .welcome-message {
-            text-align: center;
-            margin-top: 5rem;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .welcome-message h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: #1e293b;
-        }
-        
-        .welcome-subtitle {
-            color: #64748b;
-            font-size: 1.1rem;
-            margin-bottom: 2.5rem;
-        }
-        
-        /* Quick Actions */
-        .quick-actions {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 3rem;
-        }
-        
-        .quick-action {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: #6366f1;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .quick-action:hover {
-            background: #4f46e5;
-            transform: translateY(-2px);
-        }
-        
-        /* Sidebar Navigation */
-        .nav-footer {
-            margin-top: auto;
-            padding: 1rem 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .sign-out {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            width: 100%;
-            justify-content: flex-start;
-            padding: 0.75rem 1rem;
-        }
-        
-        .sign-out span {
-            display: inline-block;
-            margin-left: 0.5rem;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* View Toggle */
-        .view-toggle {
-            display: flex;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 4px;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        
-        .view-toggle-btn {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-weight: 500;
-            color: #94a3b8;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s;
-        }
-        
-        .view-toggle-btn.active {
-            background: #6366f1;
-            color: white;
-        }
-        
-        .view-toggle-btn i {
-            font-size: 1rem;
-        }
-        
-        /* Chat Messages */
-        .chat-messages {
-            height: 100%;
-            overflow-y: auto;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        
-        .message {
-            max-width: 80%;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 0.95rem;
-        }
-        
-        .message-assistant {
-            align-self: flex-start;
-            background: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
-            border-bottom-left-radius: 4px;
-        }
-        
-        /* Preview Container */
-        .preview-container {
-            display: none;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            margin: 1rem 0;
-        }
-        
-        .event-preview h2 {
-            color: #f1f5f9;
-            margin-bottom: 1.5rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-        
-        .event-details {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .detail-row {
-            display: flex;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .detail-row:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        
-        .detail-label {
-            font-weight: 500;
-            color: #94a3b8;
-            width: 120px;
-            flex-shrink: 0;
-        }
-        
-        .detail-value {
-            color: #f1f5f9;
-            flex: 1;
-        }
-        
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.25rem;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-            font-size: 0.95rem;
-        }
-        
-        .btn-primary {
-            background: #6366f1;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #4f46e5;
-        }
-        
-        .btn-primary:disabled {
-            background: #4b5563;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
     </style>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- Google API Client -->
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
     <!-- Floating Particles Background -->
@@ -2415,18 +1866,19 @@
     <!-- Login Page (before login) -->
     <div class="login-container" id="loginContainer">
         <div class="login-card">
-            <h1>Smart Scheduler</h1>
-            <p>Welcome Back</p>
-            <p class="subtext">Sign in to manage your schedule with AI</p>
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Smart Scheduler</span>
+                </div>
+                <h1>Welcome Back</h1>
+                <p>Sign in to manage your schedule with AI</p>
+            </div>
             
             <div class="login-buttons">
-                <button id="authorizeButton" class="google-signin-btn" onclick="handleAuthClick(event)">
+                <button id="authorize_button" class="google-signin-btn">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
                     <span>Continue with Google</span>
-                </button>
-                <button id="testButton" class="google-signin-btn test-mode" onclick="testButtonClick()">
-                    <i class="fab fa-google"></i>
-                    <span>Continue in Test Mode</span>
                 </button>
             </div>
             
@@ -2436,27 +1888,20 @@
         </div>
     </div>
     
-    <!-- Welcome Preview Screen (shown before login) -->
-    <div class="welcome-preview" id="welcomePreview" style="display: none;">
-        <div class="welcome-content">
-            <div class="welcome-logo">
-                <i class="fas fa-calendar-alt"></i>
-                <h1>Smart Scheduler</h1>
-            </div>
-            <p class="welcome-tagline">Your intelligent scheduling assistant</p>
-            <button id="getStartedBtn" class="btn btn-primary">
-                Get Started
-            </button>
-        </div>
-    </div>
-
     <!-- App Layout (after login) -->
     <div class="app-layout" id="appLayout" style="display: none;">
         <!-- Sidebar -->
+        <header class="app-header">
+            <h1>Smart Scheduler</h1>
+            <button id="signout_button" class="signout-button" title="Sign out">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sign out</span>
+            </button>
+        </header>
         <div class="sidebar">
             <!-- App Logo -->
-            <div class="logo-container">
-                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIiBmaWxsPSIjNjM2NmYxIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgcng9IjIwIiBmaWxsPSIjZmZmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PUFyaWFsIGZvbnQtc2l6ZT0iMTIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBhbGlnbm1lbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzYzNjZmMSI+UzwvdGV4dD48L3N2Zz4=" alt="Smart Scheduler" class="app-logo">
+            <div class="logo-container" style="justify-content: center; margin: 1.5rem 0 2rem 0;">
+                <img src="./icon-192x192.png" alt="Smart Scheduler" class="app-logo" style="width: 40px; height: 40px; border-radius: 8px;">
             </div>
             
             <!-- Navigation Buttons -->
@@ -2468,26 +1913,19 @@
                     <i class="fas fa-comment"></i>
                 </button>
             </div>
-            
-            <div class="nav-footer">
-                <button id="signOutBtn" class="nav-button sign-out" title="Sign Out">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sign Out</span>
-                </button>
-            </div>
         </div>
         
         <!-- Main Content -->
         <div class="main-content">
             <!-- Welcome Page (shown by default) -->
             <div class="content-page active" id="welcomePage">
-                <div class="welcome-message">
-                    <h1>Welcome, <span id="welcomeName">User</span>! 👋</h1>
-                    <p class="welcome-subtitle">How can I help you schedule today?</p>
+                <div style="text-align: center; margin-top: 5rem;">
+                    <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Welcome, <span id="welcomeName">User</span>! 👋</h1>
+                    <p style="color: #94a3b8; margin-bottom: 2rem;">How can I help you schedule today?</p>
                     
                     <!-- Quick Actions -->
-                    <div class="quick-actions">
-                        <button class="quick-action" id="newEventBtn">
+                    <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 3rem;">
+                        <button class="quick-action" onclick="document.getElementById('chatBtn').click()">
                             <i class="fas fa-plus"></i>
                             <span>New Event</span>
                         </button>
@@ -2497,65 +1935,13 @@
             
             <!-- Chat Page -->
             <div class="content-page" id="chatPage" style="display: none;">
-                <!-- View Toggle -->
-                <div class="view-toggle">
-                    <button id="chatViewBtn" class="view-toggle-btn active">
-                        <i class="fas fa-comments"></i> Chat
-                    </button>
-                    <button id="previewViewBtn" class="view-toggle-btn">
-                        <i class="fas fa-calendar-check"></i> Preview
-                    </button>
-                </div>
-
-                <!-- Chat View -->
-                <div id="chatView" class="chat-container">
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="message message-assistant">
-                            <strong>🤖 Assistant:</strong><br>
-                            Welcome! I'm your smart scheduling assistant. How can I help you today?
-                        </div>
+                <div class="chat-container" id="chatContainer">
+                    <div id="message" class="message assistant">
+                        <strong>🤖 Assistant:</strong><br>
+                        Welcome! I'm your smart scheduling assistant. How can I help you today?
                     </div>
                 </div>
-
-                <!-- Preview View -->
-                <div id="previewView" class="preview-container" style="display: none;">
-                    <div class="user-info">
-                        <div id="userAvatar" class="user-avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="user-details">
-                            <span id="userName" class="user-name">User Name</span>
-                            <span class="user-email" id="userEmail">user@example.com</span>
-                        </div>
-                        <button id="signout_button" class="signout-btn" title="Sign out">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </div>
-                    <div class="event-preview">
-                        <h2>Event Preview</h2>
-                        <div class="event-details">
-                            <div class="detail-row">
-                                <div class="detail-label">Event Title</div>
-                                <div class="detail-value" id="previewTitle">-</div>
-                            </div>
-                            <div class="detail-row">
-                                <div class="detail-label">Date & Time</div>
-                                <div class="detail-value" id="previewDateTime">-</div>
-                            </div>
-                            <div class="detail-row">
-                                <div class="detail-label">Attendees</div>
-                                <div class="detail-value" id="previewAttendees">-</div>
-                            </div>
-                            <div class="detail-row">
-                                <div class="detail-label">Location</div>
-                                <div class="detail-value" id="previewLocation">-</div>
-                            </div>
-                        </div>
-                        <button id="createEventBtn" class="btn btn-primary" disabled>
-                            <i class="fas fa-calendar-plus"></i> Create Event
-                        </button>
-                    </div>
-                </div>
+            </div>
         </div>    
     </div>
     
@@ -2568,7 +1954,15 @@
     </div>
 
 <script>
-    // Google OAuth Configuration - using the one in head section with additional scopes
+    const CLIENT_ID = '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com';
+    // SECURITY WARNING: API keys should not be exposed in client-side code
+    // In production, this should be handled by a backend server
+    const TOGETHER_API_KEY = '1e60c638e6c99899e27a3bec16b056dfd8fc1e5cace56a9c09e3a324f0de8f39';
+    const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+    const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+
+    let tokenClient, accessToken = null;
+    let gapiInited = false, gisInited = false;
     let chatHistory = [];
     let questionCount = 0;
     let baseDate = new Date(); // Base date for the session
@@ -2692,20 +2086,6 @@
 
     // Function to extract and update event details from user input
     function updateEventDetails(userInput) {
-      // Store the previous state for comparison
-      const previousState = window.eventDetails ? {...window.eventDetails} : null;
-      
-      // Initialize eventDetails if it doesn't exist
-      if (!window.eventDetails) {
-        window.eventDetails = {
-          summary: '',
-          date: null,
-          time: null,
-          attendees: null,
-          location: null,
-          attendeeEmails: []
-        };
-      }
       const input = userInput.toLowerCase();
 
       // Extract date patterns (only if we don't already have a date)
@@ -2849,40 +2229,6 @@
       if (input.includes('no') && input.length < 10) {
         console.log('User declined to provide email addresses');
       }
-      
-      // Check if any details were actually updated
-      const hasChanges = previousState ? 
-        JSON.stringify(previousState) !== JSON.stringify(window.eventDetails) : 
-        true;
-      
-      if (hasChanges) {
-        console.log('Event details updated:', window.eventDetails);
-        
-        // Update the event preview if we're on the preview view
-        if (window.updateEventPreview) {
-          window.updateEventPreview();
-        }
-        
-        // If we have all required fields, suggest creating the event
-        if (window.eventDetails.date && 
-            window.eventDetails.time && 
-            window.eventDetails.attendees && 
-            window.eventDetails.location) {
-          
-          // Only auto-switch to preview if we weren't already there
-          const previewViewBtn = document.getElementById('previewViewBtn');
-          if (previewViewBtn && !previewViewBtn.classList.contains('active')) {
-            // Add a small delay to allow the UI to update
-            setTimeout(() => {
-              if (previewViewBtn && !previewViewBtn.classList.contains('active')) {
-                previewViewBtn.click();
-                // Add a message suggesting to create the event
-                addAssistantMessage("I've updated the event preview. Would you like to create this event?");
-              }
-            }, 500);
-          }
-        }
-      }
     }
 
     // Function to check if other people are mentioned in attendees
@@ -2919,19 +2265,6 @@
       return result;
     }
 
-    // Function to add an assistant message to the chat
-    function addAssistantMessage(message) {
-      const chatMessages = document.getElementById('chatMessages');
-      if (!chatMessages) return;
-      
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'message message-assistant';
-      messageDiv.innerHTML = `<strong>🤖 Assistant:</strong><br>${message}`;
-      
-      chatMessages.appendChild(messageDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
     // Function to generate a smart event name using LLM
     async function generateSmartEventName() {
       const prompt = `Create a concise, descriptive event title based on these details:
@@ -2991,77 +2324,44 @@ Respond with ONLY the event title, no quotes or extra text.`;
       }
     }
 
-         // Initialize elements safely
-     let authBtn, signOutBtn, inputBox, msg;
-     
-     function initializeElements() {
-         authBtn = document.getElementById('authorize_button');
-         signOutBtn = document.getElementById('signout_button');
-         inputBox = document.getElementById('inputBox');
-         msg = document.getElementById('message');
-         
-         // Set up event listeners if elements exist
-         if (authBtn) {
-             authBtn.onclick = handleAuthClick;
-         }
-         
-         if (signOutBtn) {
-             signOutBtn.onclick = handleSignout;
-         }
-         
-         if (inputBox) {
-             inputBox.addEventListener('keypress', function(e) {
-                 if (e.key === 'Enter') {
-                     sendToLLM(this.value, true);
-                     this.value = '';
-                 }
-             });
-         }
-     }
-     
-     // Initialize elements when DOM is loaded
-     if (document.readyState === 'loading') {
-         document.addEventListener('DOMContentLoaded', initializeElements);
-     } else {
-         initializeElements();
-     }
-     const darkToggle = document.getElementById('darkToggle');
-     const voiceButton = document.getElementById('voiceButton');
+     // UI elements will be initialized in the onload function
+     let authBtn, inputBox, msg, darkToggle, voiceButton;
 
      // Voice recognition setup
-     let recognition = null;
-     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-       recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-       recognition.continuous = false;
-       recognition.interimResults = false;
-       recognition.lang = 'en-US';
+     let recognition;
+     
+     function setupVoiceRecognition() {
+         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+             recognition.continuous = false;
+             recognition.interimResults = true;
+             recognition.lang = 'en-US';
 
-       recognition.onstart = () => {
-         voiceButton.classList.add('recording');
-         voiceButton.textContent = '🔴';
-       };
+             recognition.onstart = () => {
+                 if (voiceButton) voiceButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+             };
 
-       recognition.onresult = (event) => {
-         const transcript = event.results[0][0].transcript;
-         inputBox.value = transcript;
-         // Trigger the input event to process the voice input
-         inputBox.dispatchEvent(new Event('input'));
-       };
+             recognition.onresult = (event) => {
+                 if (!inputBox) return;
+                 const transcript = Array.from(event.results)
+                     .map(result => result[0])
+                     .map(result => result.transcript)
+                     .join('');
+                 inputBox.value = transcript;
+             };
 
-       recognition.onend = () => {
-         voiceButton.classList.remove('recording');
-         voiceButton.textContent = '🎤';
-       };
+             recognition.onend = () => {
+                 if (voiceButton) voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+             };
 
-       recognition.onerror = (event) => {
-         console.error('Speech recognition error:', event.error);
-         voiceButton.classList.remove('recording');
-         voiceButton.textContent = '🎤';
-       };
+             recognition.onerror = (event) => {
+                 console.error('Speech recognition error', event.error);
+                 if (voiceButton) voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+             };
+         } else {
+             console.warn('Speech Recognition API not supported in this browser');
+         }
      }
-
-    // Dark toggle functionality (element doesn't exist, so commenting out)
-    // darkToggle.onclick = () => document.body.classList.toggle('dark');
 
     async function gapiLoaded() {
       try {
@@ -3127,102 +2427,67 @@ Respond with ONLY the event title, no quotes or extra text.`;
       }
     }
     
-    function handleAuthClick(event) {
+    function handleAuthClick() {
       console.log('Auth button clicked');
-      if (event) event.preventDefault();
-      
-      if (!window.tokenClient) {
+      if (!tokenClient) {
         console.error('Token client not initialized');
-        showError('Authentication service not ready. Please refresh the page.');
-        // Try to initialize again
-        initializeGoogleAPIs();
         return;
       }
       
-      console.log('Requesting access token...');
-      try {
-        // Request access token
-        window.tokenClient.callback = (response) => {
-          if (response.error) {
-            console.error('Auth error:', response.error);
-            showError('Authentication failed. Please try again.');
-            return;
-          }
-          console.log('Access token received');
-          accessToken = response.access_token;
-          handleAuthSuccess();
-        };
-        
-        if (window.gapi && window.gapi.client && window.gapi.client.getToken() === null) {
-          // Prompt the user to select a Google Account and ask for consent to share their data
-          window.tokenClient.requestAccessToken({ prompt: 'consent' });
-        } else {
-          // Skip display of account chooser and consent dialog for an existing session
-          window.tokenClient.requestAccessToken({ prompt: '' });
-        }
-      } catch (error) {
-        console.error('Error during auth:', error);
-        showError('An error occurred during authentication. Please try again.');
+      if (gapi.client.getToken() === null) {
+        console.log('Requesting new access token with consent');
+        tokenClient.requestAccessToken({prompt: 'consent'});
+      } else {
+        console.log('Using existing access token');
+        tokenClient.requestAccessToken({prompt: ''});
       }
     }
 
-         // Voice button click handler
-     voiceButton.onclick = () => {
-       if (recognition && !inputBox.disabled) {
-         recognition.start();
+     // Voice button click handler is now in initializeUI()
+     
+     // Auth button click handler will be set up in initializeUI()
+     function setupAuthButton() {
+       if (!authBtn) {
+         authBtn = document.getElementById('authButton');
+         if (!authBtn) {
+           console.error('Auth button not found in the DOM');
+           return;
+         }
        }
-     };
-
-     authBtn.onclick = () => {
-       tokenClient.callback = async (resp) => {
-         if (resp.error) return msg.textContent = 'Auth error: ' + resp.error;
-         accessToken = resp.access_token;
+       
+       authBtn.onclick = () => {
+         if (!tokenClient) {
+           console.error('Token client not initialized');
+           return;
+         }
          
-         // After successful login
-    async function handleAuthSuccess() {
-      console.log('Handling successful authentication...');
-      
-      // Get UI elements
-      const loginContainer = document.getElementById('loginContainer');
-      const welcomePreview = document.getElementById('welcomePreview');
-      const appLayout = document.getElementById('appLayout');
-      const inputContainer = document.getElementById('inputContainer');
-      const welcomePage = document.getElementById('welcomePage');
-      const chatPage = document.getElementById('chatPage');
-      
-      try {
-        // Hide login and preview, show app layout
-        if (loginContainer) loginContainer.style.display = 'none';
-        if (welcomePreview) welcomePreview.style.display = 'none';
-        if (appLayout) appLayout.style.display = 'flex';
-        if (inputContainer) inputContainer.style.display = 'flex';
-        
-        // Show welcome page by default
-        if (welcomePage) welcomePage.classList.add('active');
-        if (chatPage) chatPage.classList.remove('active');
-        
-        // Load user profile
-        await loadUserProfile();
-        
-        // Initialize navigation
-        setupNavigation();
-        
-        // Enable input box
-        const inputBox = document.getElementById('inputBox');
-        if (inputBox) inputBox.disabled = false;
-        
-        console.log('Authentication flow completed successfully');
-        
-      } catch (error) {
-        console.error('Error in handleAuthSuccess:', error);
-        showError('Error initializing the application. Please refresh and try again.');
-        
-        // Reset UI to login state
-        if (loginContainer) loginContainer.style.display = 'flex';
-        if (appLayout) appLayout.style.display = 'none';
-        if (inputContainer) inputContainer.style.display = 'none';
-      }
-    }
+         tokenClient.callback = async (resp) => {
+           if (resp.error) {
+             console.error('Auth error:', resp.error);
+             if (msg) msg.textContent = 'Auth error: ' + resp.error;
+             return;
+           }
+           
+           accessToken = resp.access_token;
+           
+           // After successful login
+           async function handleAuthSuccess() {
+             // Show app layout
+             const loginContainer = document.getElementById('loginContainer');
+             const appLayout = document.getElementById('appLayout');
+             
+             if (loginContainer) loginContainer.style.display = 'none';
+             if (appLayout) appLayout.classList.add('active');
+             
+             // Load user profile
+           await loadUserProfile();
+           
+           // Initialize navigation
+           setupNavigation();
+           
+           // Show welcome page by default
+           document.getElementById('welcomePage').classList.add('active');
+         }
          handleAuthSuccess();
          
          // Switch to app layout
@@ -3352,132 +2617,30 @@ Respond with ONLY the event title, no quotes or extra text.`;
 
      // Load user profile from Google
     async function loadUserProfile() {
-      console.log('Loading user profile...');
+      if (!gapi.client || !gapi.client.oauth2) {
+        console.log('Google API not ready yet');
+        return;
+      }
       
       try {
-        // Make sure gapi client is initialized
-        if (!gapi.client) {
-          throw new Error('Google API client not initialized');
-        }
-        
-        // Get the user's profile information
-        const response = await gapi.client.people.people.get({
-          resourceName: 'people/me',
-          personFields: 'names,emailAddresses,photos'
-        });
-        
-        const profile = response.result;
-        console.log('User profile loaded:', profile);
+        const response = await gapi.client.oauth2.userinfo.get();
+        const user = response.result;
         
         // Update UI with user info
-        const userName = profile.names ? profile.names[0].displayName : 'User';
-        const email = profile.emailAddresses ? profile.emailAddresses[0].value : '';
-        const photoUrl = profile.photos ? profile.photos[0].url : '';
+        const displayName = user.name || 'User';
+        document.getElementById('welcomeName').textContent = displayName;
         
-        // Update UI elements
-        updateUserProfileUI(userName, photoUrl, email);
+        // Set random avatar color
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981', '#0ea5e9'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        document.documentElement.style.setProperty('--primary', randomColor);
         
-        return profile;
-        
+        console.log('User profile loaded:', displayName);
+        return displayName;
       } catch (error) {
         console.error('Error loading user profile:', error);
-        
-        // Set default values
-        updateUserProfileUI('User', null, '');
-        
-        // Only show error if it's not a network issue
-        if (!navigator.onLine) {
-          console.warn('Network is offline, using cached profile data');
-        } else {
-          showError('Could not load your profile information. Some features may be limited.');
-        }
-        
-        throw error; // Re-throw to be handled by the caller
+        return 'User';
       }
-    }
-    
-    // Update user profile UI elements
-    function updateUserProfileUI(displayName, photoUrl = null, email = '') {
-      const userNameElements = document.querySelectorAll('.user-name');
-      const userEmailElements = document.querySelectorAll('.user-email');
-      const userAvatarElements = document.querySelectorAll('.user-avatar');
-      const welcomeNameElements = document.querySelectorAll('#welcomeName');
-      
-      // Update welcome message with user's name
-      welcomeNameElements.forEach(el => {
-        if (el) el.textContent = displayName;
-      });
-      
-      // Update user info in the sidebar
-      userNameElements.forEach(el => el.textContent = displayName);
-      userEmailElements.forEach(el => el.textContent = email);
-      
-      // Update avatar
-      if (photoUrl) {
-        userAvatarElements.forEach(el => {
-          el.innerHTML = ''; // Clear any existing content
-          const img = document.createElement('img');
-          img.src = photoUrl;
-          img.alt = displayName;
-          img.onerror = function() {
-            // If image fails to load, fall back to initials
-            showInitials(el, displayName);
-          };
-          el.appendChild(img);
-          el.style.backgroundColor = 'transparent';
-        });
-      } else {
-        // Fallback to initials
-        userAvatarElements.forEach(el => {
-          showInitials(el, displayName);
-        });
-      }
-      
-      // Helper function to show user initials
-      function showInitials(element, name) {
-        if (!name) return;
-        
-        const initials = name.split(' ')
-          .map(part => part[0])
-          .join('')
-          .toUpperCase()
-          .substring(0, 2);
-        
-        element.textContent = initials;
-        element.style.backgroundColor = getRandomColor();
-        
-        // Ensure text is visible
-        element.style.color = '#fff';
-        element.style.display = 'flex';
-        element.style.alignItems = 'center';
-        element.style.justifyContent = 'center';
-        element.style.borderRadius = '50%';
-        element.style.width = '40px';
-        element.style.height = '40px';
-        element.style.fontSize = '16px';
-        element.style.fontWeight = 'bold';
-      }
-      
-      // Store in local storage for persistence
-      try {
-        localStorage.setItem('user_profile', JSON.stringify({
-          name: displayName,
-          email: email,
-          photoUrl: photoUrl,
-          lastUpdated: new Date().toISOString()
-        }));
-      } catch (e) {
-        console.error('Error saving user profile to localStorage:', e);
-      }
-      
-      // Make sure the welcome message is visible
-      const welcomeMessage = document.querySelector('.welcome-message');
-      if (welcomeMessage) {
-        welcomeMessage.style.display = 'block';
-      }
-      
-      console.log('UI updated for user:', displayName);
-      return displayName;
     }
 
      // Sign out handler
@@ -3609,63 +2772,39 @@ Respond with ONE short, direct question to get the missing information.`;
       try {
         // Generate a smart event name using LLM
         const summary = await generateSmartEventName();
-        
+
         // Parse date and time to create a proper DateTime
-        const dateTime = parseDateTime(window.eventDetails.date, window.eventDetails.time);
-        
+        const dateTime = parseDateTime(eventDetails.date, eventDetails.time);
+
         if (!dateTime) {
           throw new Error('Could not parse the date and time information');
         }
-        
+
         // Debug logging
         console.log('Base date for session:', baseDate.toLocaleString());
-        console.log('Event details:', window.eventDetails);
+        console.log('Event details:', eventDetails);
         console.log('Parsed dateTime:', dateTime);
         console.log('Current real time:', new Date());
-        
+
         // Validate that the date is in the future relative to base date (with some tolerance)
         const timeDiff = dateTime.getTime() - baseDate.getTime();
         const hoursDiff = timeDiff / (1000 * 60 * 60);
-        
+
         if (hoursDiff < -1) { // Allow 1 hour tolerance for past events
           throw new Error(`Event date must be in the future. The specified time (${dateTime.toLocaleString()}) is in the past relative to the session start time (${baseDate.toLocaleString()}).`);
         }
-        
-        // Create the event
-        const eventLink = await createEvent(summary, dateTime, window.eventDetails.attendeeEmails || []);
-        const inviteInfo = window.eventDetails.attendeeEmails?.length > 0 
-          ? ` (Invites sent to: ${window.eventDetails.attendeeEmails.join(', ')})` 
-          : '';
-          
-        // Show success message
-        addAssistantMessage(`📅 Event created: <a href="${eventLink}" target="_blank">${summary}</a>${inviteInfo}`);
+
+        const eventLink = await createEvent(summary, dateTime, eventDetails.attendeeEmails);
+        const inviteInfo = eventDetails.attendeeEmails.length > 0 ? ` (Invites sent to: ${eventDetails.attendeeEmails.join(', ')})` : '';
+        msg.innerHTML = `📅 Event created: <a href="${eventLink}" target="_blank">${summary}</a>${inviteInfo}`;
 
         // Reset for next event
         questionCount = 0;
         chatHistory = [];
-        window.eventDetails = { 
-          summary: '',
-          date: null, 
-          time: null, 
-          attendees: null, 
-          location: null, 
-          attendeeEmails: [] 
-        };
-        
+        eventDetails = { date: null, time: null, attendees: null, location: null, attendeeEmails: [] };
         // Reset base date for new session
         baseDate = new Date();
         console.log('New session started with base date:', baseDate.toLocaleString());
-        
-        // Update the preview to show empty fields
-        if (window.updateEventPreview) {
-          window.updateEventPreview();
-        }
-        
-        // Switch back to chat view
-        const chatViewBtn = document.getElementById('chatViewBtn');
-        if (chatViewBtn) {
-          chatViewBtn.click();
-        }
 
       } catch (error) {
         console.error('Event creation error:', error);
@@ -3834,470 +2973,473 @@ Respond with ONE short, direct question to get the missing information.`;
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // Google API initialization with better error handling and People API support
-    async function gapiLoaded() {
-      console.log('Google API script loaded');
+    // Google API initialization with better error handling
+    async function initializeAPIs() {
+      console.log('Initializing Google APIs...');
       
+      // First check if gapi is loaded
+      if (typeof gapi === 'undefined') {
+        console.error('Google API client library not loaded');
+        displayMessage('Error: Google API client library failed to load. Please refresh the page.', 'error');
+        return;
+      }
+
+      // Load the Google API client library
+      gapi.load('client', {
+        callback: function() {
+          console.log('Google API client loaded, initializing...');
+          
+          // Initialize with the API key and client ID
+          gapi.client.init({
+            apiKey: '', // Not needed for OAuth flows
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+            clientId: '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com',
+            scope: 'https://www.googleapis.com/auth/calendar',
+          }).then(function() {
+            console.log('Google API client initialized successfully');
+            gapiInited = true;
+            maybeEnableButtons();
+            
+            // Check if we have a token in the URL (OAuth redirect)
+            checkForAccessToken();
+            
+          }).catch(function(error) {
+            const errorMsg = 'Failed to initialize Google API client: ' + error.message;
+            console.error(errorMsg, error);
+            displayMessage(errorMsg, 'error');
+          });
+        },
+        onerror: function() {
+          const errorMsg = 'Failed to load Google API client library. Check your internet connection.';
+          console.error(errorMsg);
+          displayMessage(errorMsg, 'error');
+          
+          // Try again after a delay
+          setTimeout(initializeAPIs, 3000);
+        },
+        timeout: 10000, // 10 seconds
+        ontimeout: function() {
+          const errorMsg = 'Timeout loading Google API client library. Please check your connection.';
+          console.error(errorMsg);
+          displayMessage(errorMsg, 'error');
+        }
+      });
+    }
+    
+    async function gapiLoaded() {
       try {
-        // Load the client library
+        console.log('Loading Google API client...');
         await new Promise((resolve, reject) => {
-          gapi.load('client:auth2', {
+          gapi.load('client', {
             callback: resolve,
-            onerror: reject,
-            timeout: 10000, // 10 seconds
-            ontimeout: () => reject(new Error('Timeout loading Google API client'))
+            onerror: reject
           });
         });
-        
-        // Initialize the client with the API key and client ID
-        console.log('Initializing Google API client...');
-        await gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          discoveryDocs: DISCOVERY_DOCS,
-          scope: SCOPES
-        });
-        
-        console.log('Google API client initialized with scopes:', SCOPES);
-        gapiInited = true;
-        maybeEnableButtons();
-        
-        // Check if user is already signed in
-        const authInstance = gapi.auth2.getAuthInstance();
-        if (authInstance && authInstance.isSignedIn && authInstance.isSignedIn.get()) {
-          console.log('User already signed in');
-          const user = authInstance.currentUser.get();
-          accessToken = user.getAuthResponse().access_token;
-          
-          // Set the token for gapi client
-          if (gapi.client) {
-            gapi.client.setToken({ access_token: accessToken });
-          }
-          
-          // Handle successful authentication
-          await handleAuthSuccess();
-        }
-        
+        await initializeGapi();
       } catch (error) {
-        console.error('Failed to initialize Google API:', error);
-        
-        // Show error to user
-        const loginContainer = document.getElementById('loginContainer');
-        if (loginContainer) {
-          loginContainer.innerHTML += `
-            <div class="error-message" style="color: #ff4444; margin-top: 20px; padding: 10px; background: #ffebee; border-radius: 4px;">
-              Error initializing Google services. Please refresh the page.
-              <br><small>${error.message || 'Unknown error occurred'}</small>
-            </div>
-          `;
-        }
+        console.error('Failed to load Google API:', error);
+        alert('Failed to load Google API: ' + error.message);
       }
     }
     
-    function gisLoaded() {
-      console.log('Google Identity Services script loaded');
-      
+    async function initializeGapi() {
       try {
-        if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-          throw new Error('Google Identity Services not properly loaded');
+        console.log('Initializing Google API client...');
+        await gapi.client.init({
+          discoveryDocs: DISCOVERY_DOCS,
+        });
+        gapiInited = true;
+        console.log('Google API client initialized successfully');
+        maybeEnableButtons();
+      } catch (error) {
+        console.error('Failed to initialize Google API:', error);
+        alert('Failed to initialize Google API: ' + error.message);
+      }
+    }
+    
+    // Global variables for buttons
+    let signOutBtn;
+    
+    function gisLoaded() {
+      try {
+        console.log('Initializing Google Identity Services...');
+        
+        // First, make sure google.accounts is available
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+          const errorMsg = 'Google Identity Services not loaded. Make sure you have included the Google Identity Services script.';
+          console.error(errorMsg);
+          displayMessage(errorMsg, 'error');
+          
+          // Try again in 1 second if we haven't tried too many times
+          if (typeof gisLoaded.retryCount === 'undefined') {
+            gisLoaded.retryCount = 0;
+          }
+          
+          if (gisLoaded.retryCount < 3) {
+            gisLoaded.retryCount++;
+            console.log(`Retrying Google Identity Services initialization (${gisLoaded.retryCount}/3)...`);
+            setTimeout(gisLoaded, 1000);
+          } else {
+            displayMessage('Failed to load Google Identity Services after multiple attempts. Please refresh the page.', 'error');
+          }
+          return;
         }
         
-        // Initialize the token client with all required scopes
+        console.log('Google Identity Services loaded, initializing token client...');
+        
+        // Initialize the token client
         tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
-          scope: SCOPES,
+          scope: 'https://www.googleapis.com/auth/calendar',
           prompt: 'consent',
-          callback: async (response) => {
-            const authButton = document.getElementById('authorize_button');
-            
-            if (response.error) {
-              console.error('OAuth error:', response.error);
-              
-              // Reset button state
-              if (authButton) {
-                authButton.textContent = 'Sign in with Google';
-                authButton.disabled = false;
-              }
-              
-              if (response.error === 'popup_closed') {
-                console.log('User closed the OAuth popup');
-              } else if (response.error === 'access_denied') {
-                console.warn('User denied the permission request');
-                alert('Permission is required to access your Google Calendar. Please grant the requested permissions.');
-              } else {
-                console.error('OAuth error:', response.error);
-                alert('Sign-in error: ' + (response.error_description || response.error));
-              }
-              return;
-            }
-            
-            console.log('OAuth token received');
-            accessToken = response.access_token;
-            
+          callback: (response) => {
             try {
-              // Set the token for gapi client
-              if (gapi.client) {
-                gapi.client.setToken({ access_token: accessToken });
+              if (response && response.access_token) {
+                accessToken = response.access_token;
+                console.log('Access token received');
+                
+                // Set the token for gapi client if it's loaded
+                if (gapi.client) {
+                  gapi.client.setToken({
+                    access_token: accessToken,
+                    expires_in: response.expires_in || 3600,
+                    token_type: 'Bearer'
+                  });
+                } else {
+                  console.warn('gapi.client not available yet');
+                }
+                
+                // Handle the successful authentication
+                handleAuthSuccess();
+              } else if (response && response.error) {
+                const errorMsg = 'OAuth error: ' + (response.error_description || response.error);
+                console.error(errorMsg);
+                displayMessage(errorMsg, 'error');
+              } else {
+                console.error('Unexpected OAuth response:', response);
+                displayMessage('Unexpected authentication response', 'error');
               }
-              
-              // Handle successful authentication
-              await handleAuthSuccess();
-              
             } catch (error) {
-              console.error('Error after authentication:', error);
-              
-              // Show error to user
-              const loginContainer = document.getElementById('loginContainer');
-              if (loginContainer) {
-                loginContainer.innerHTML += `
-                  <div class="error-message" style="color: #ff4444; margin-top: 20px; padding: 10px; background: #ffebee; border-radius: 4px;">
-                    Error after sign-in: ${error.message || 'Unknown error occurred'}
-                  </div>
-                `;
+              console.error('Error in OAuth callback:', error);
+              displayMessage('Error processing authentication response', 'error');
+            }
+          },
+          error_callback: (error) => {
+            try {
+              if (error.error === 'popup_closed') {
+                console.log('User closed the OAuth popup');
+                return;
               }
               
-              // Reset button state
-              if (authButton) {
-                authButton.textContent = 'Sign in with Google';
-                authButton.disabled = false;
+              let errorMsg = 'Authentication error: ';
+              if (error.error) {
+                errorMsg += error.error;
+                if (error.error_description) {
+                  errorMsg += ' - ' + error.error_description;
+                }
+              } else {
+                errorMsg += JSON.stringify(error);
               }
+              
+              console.error('OAuth error:', error);
+              displayMessage(errorMsg, 'error');
+              
+              // Reset auth state on error
+              tokenClient = null;
+              gisInited = false;
+              
+            } catch (e) {
+              console.error('Error in OAuth error callback:', e);
             }
           }
         });
         
         gisInited = true;
-        console.log('Google Identity Services initialized with scopes:', SCOPES);
+        console.log('Google Identity Services initialized successfully');
         maybeEnableButtons();
         
-        // Set up the sign-in button if it exists
-        const authButton = document.getElementById('authorize_button');
-        if (authButton) {
-          authButton.onclick = handleAuthClick;
-          authButton.style.display = 'inline-block';
-          authButton.disabled = false;
-          console.log('Sign-in button initialized');
-        } else {
-          console.warn('Sign-in button not found in the DOM');
-        }
-        
       } catch (error) {
-        console.error('Error initializing Google Identity Services:', error);
+        console.error('Failed to initialize Google Identity Services:', error);
+        displayMessage('Failed to initialize authentication service: ' + (error.message || 'Unknown error'), 'error');
         
-        // Show error to user
-        const loginContainer = document.getElementById('loginContainer');
-        if (loginContainer) {
-          loginContainer.innerHTML += `
-            <div class="error-message" style="color: #ff4444; margin-top: 20px; padding: 10px; background: #ffebee; border-radius: 4px;">
-              Error initializing Google Sign-In. Please refresh the page.
-              <br><small>${error.message || 'Unknown error occurred'}</small>
-            </div>
-          `;
-        }
-      }
-    }
-    
-    function maybeEnableButtons() {
-      if (gapiInited && gisInited) {
-        document.getElementById('authorize_button').onclick = handleAuthClick;
-        document.getElementById('signout_button').onclick = handleSignoutClick;
-        console.log('Google APIs initialized successfully');
+        // Try again after a delay with exponential backoff
+        const retryDelay = Math.min(1000 * Math.pow(2, gisLoadRetryCount || 0), 10000);
+        gisLoadRetryCount = (gisLoadRetryCount || 0) + 1;
+        console.log(`Retrying Google Identity Services initialization in ${retryDelay}ms...`);
+        
+        setTimeout(gisLoaded, retryDelay);
       }
     }
     
     function handleAuthClick() {
-      console.log('Sign-in button clicked');
+      console.log('handleAuthClick called');
       
+      // Show loading state
       const authButton = document.getElementById('authorize_button');
-      if (!authButton) {
-        console.error('Sign-in button not found');
+      const originalButtonText = authButton.innerHTML;
+      authButton.disabled = true;
+      authButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+      
+      // Check if tokenClient is initialized
+      if (!tokenClient) {
+        console.error('Token client not initialized. Attempting to reinitialize...');
+        // Try to reinitialize
+        gisLoaded();
+        
+        // Show error to user
+        displayMessage('Authentication service is initializing. Please try again in a moment.', 'warning');
+        
+        // Reset button state after a delay
+        setTimeout(() => {
+          authButton.disabled = false;
+          authButton.innerHTML = originalButtonText;
+        }, 2000);
         return;
       }
       
-      // Show loading state
-      const originalText = authButton.textContent;
-      authButton.textContent = 'Loading...';
-      authButton.disabled = true;
-      
-      // Clear any previous error messages
-      const errorMessages = document.querySelectorAll('.error-message');
-      errorMessages.forEach(el => el.remove());
-      
       try {
-        if (!tokenClient) {
-          throw new Error('Google Sign-In is not ready. Please refresh the page and try again.');
-        }
+        console.log('Requesting access token...');
         
-        if (!gapiInited || !gisInited) {
-          throw new Error('Google services not fully loaded. Please wait and try again.');
-        }
+        // Check if we already have a token
+        const hasToken = gapi.client && gapi.client.getToken() !== null;
         
-        console.log('Requesting access token with scopes:', SCOPES);
+        // Request token with appropriate prompt
+        const options = hasToken ? { prompt: '' } : { prompt: 'consent' };
+        console.log(`Requesting token with options:`, options);
         
-        // Request token with consent
-        tokenClient.requestAccessToken({
-          prompt: 'consent',
-          // Add any additional parameters needed for your app
-          // For example, you can add login_hint for a better user experience
-          // login_hint: 'user@example.com'
-        });
+        // Show a message to the user
+        displayMessage('Opening Google sign-in...', 'info');
         
-        // The callback in tokenClient will handle the response
+        // Request the token
+        tokenClient.requestAccessToken(options);
+        
+        // Set a timeout to handle cases where the popup might be blocked
+        const popupTimeout = setTimeout(() => {
+          if (!gapi.client || !gapi.client.getToken()) {
+            console.warn('Popup might be blocked. Please check your browser settings.');
+            displayMessage('Popup blocked or taking too long. Please check your browser settings and try again.', 'warning');
+            
+            // Reset button state
+            authButton.disabled = false;
+            authButton.innerHTML = originalButtonText;
+          }
+        }, 10000); // 10 seconds timeout
+        
+        // Store the timeout ID to clear it if authentication succeeds
+        window.authPopupTimeout = popupTimeout;
         
       } catch (error) {
-        console.error('Sign-in error:', error);
+        console.error('Error during authentication:', error);
         
-        // Show error to user
-        const loginContainer = document.getElementById('loginContainer');
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'error-message';
-        errorMessage.style.cssText = 'color: #ff4444; margin-top: 20px; padding: 10px; background: #ffebee; border-radius: 4px;';
-        
-        let errorText = `Error during sign-in: ${error.message || 'Unknown error occurred'}`;
-        
-        // Add more user-friendly messages for common errors
-        if (error.message && error.message.includes('popup_blocked')) {
-          errorText = 'The sign-in popup was blocked. Please allow popups for this site and try again.';
-        } else if (error.message && error.message.includes('access_denied')) {
-          errorText = 'Permission was denied. Please grant the requested permissions to use the app.';
-        }
-        
-        errorMessage.textContent = errorText;
-        
-        if (loginContainer) {
-          loginContainer.appendChild(errorMessage);
-          
-          // Scroll to the error message
-          setTimeout(() => {
-            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
+        let errorMessage = 'Authentication error: ';
+        if (error.error) {
+          errorMessage += error.error;
+          if (error.error_description) {
+            errorMessage += ' - ' + error.error_description;
+          }
         } else {
-          // If login container is not found, show an alert as fallback
-          alert(errorText);
+          errorMessage += error.message || 'Unknown error';
         }
+        
+        displayMessage(errorMessage, 'error');
         
         // Reset button state
-        if (authButton) {
-          authButton.textContent = originalText;
-          authButton.disabled = false;
-        }
+        authButton.disabled = false;
+        authButton.innerHTML = originalButtonText;
       }
     }
     
     // After successful login
     async function handleAuthSuccess() {
-      console.log('Handling successful authentication...');
-      
-      // Update UI to show loading state
-      const loginContainer = document.getElementById('loginContainer');
-      const authButton = document.getElementById('authorize_button');
-      
-      if (authButton) {
-        authButton.textContent = 'Loading profile...';
-        authButton.disabled = true;
-      }
-      
       try {
+        console.log('handleAuthSuccess called');
+        
+        // Clear the popup timeout if it exists
+        if (window.authPopupTimeout) {
+          clearTimeout(window.authPopupTimeout);
+          delete window.authPopupTimeout;
+        }
+        
+        // Update UI to show authentication success
+        const authButton = document.getElementById('authorize_button');
+        if (authButton) {
+          authButton.disabled = false;
+          authButton.innerHTML = '<i class="fas fa-check"></i> Connected';
+          authButton.style.backgroundColor = '#10b981'; // Green color for success
+        }
+        
         // Make sure gapi client is initialized with the token
         if (gapi.client && accessToken) {
-          console.log('Setting access token for gapi client');
-          gapi.client.setToken({ access_token: accessToken });
+          gapi.client.setToken({ 
+            access_token: accessToken,
+            token_type: 'Bearer',
+            expires_in: 3600 // Default expiration time in seconds
+          });
+          
+          console.log('Google API client token set successfully');
+          
+          // Show success message
+          displayMessage('Successfully connected to Google Calendar!', 'success');
+          
+          // Update UI to show authenticated state
+          document.getElementById('loginContainer').style.display = 'none';
+          document.getElementById('appLayout').style.display = 'flex';
+          
+          // Load user profile
+          try {
+            await loadUserProfile();
+          } catch (profileError) {
+            console.warn('Failed to load user profile:', profileError);
+            // Continue even if profile loading fails
+          }
           
           // Initialize Calendar API if not already done
           if (!gapi.client.calendar) {
-            console.log('Loading Calendar API...');
-            await new Promise((resolve, reject) => {
-              gapi.client.load('calendar', 'v3', resolve);
-            });
-            console.log('Calendar API loaded successfully');
-          } else {
-            console.log('Calendar API already loaded');
+            console.log('Initializing Calendar API...');
+            await gapi.client.load('calendar', 'v3');
+            console.log('Calendar API initialized');
           }
-        } else {
-          console.warn('gapi.client not available or missing access token');
         }
+        
+        // Show app layout and hide login
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('appLayout').style.display = 'flex';
         
         // Load user profile and get display name
-        console.log('Loading user profile...');
         const displayName = await loadUserProfile();
-        console.log('User profile loaded, display name:', displayName);
-        
-        // Now update the UI to show the app and hide login
-        const appLayout = document.getElementById('appLayout');
-        
-        if (loginContainer) {
-          // Start fading out the login container
-          loginContainer.style.opacity = '0';
-          loginContainer.style.pointerEvents = 'none';
-          
-          // After fade out, hide it completely and show the app
-          setTimeout(() => {
-            loginContainer.style.display = 'none';
-            
-            // Show the app layout with a nice fade-in effect
-            if (appLayout) {
-              appLayout.style.display = 'flex';
-              appLayout.style.opacity = '0';
-              
-              // Trigger reflow
-              void appLayout.offsetHeight;
-              
-              // Fade in
-              appLayout.style.transition = 'opacity 0.5s ease-in-out';
-              appLayout.style.opacity = '1';
-            }
-          }, 300);
-        } else if (appLayout) {
-          // Fallback if login container is not found
-          appLayout.style.display = 'flex';
-        }
         
         // Initialize navigation
-        console.log('Setting up navigation...');
         setupNavigation();
         
         // Show welcome page by default
-        const welcomePage = document.getElementById('welcomePage');
-        const chatPage = document.getElementById('chatPage');
-        const inputContainer = document.getElementById('inputContainer');
-        
-        if (welcomePage) welcomePage.style.display = 'block';
-        if (chatPage) chatPage.style.display = 'none';
+        document.getElementById('welcomePage').style.display = 'block';
+        document.getElementById('chatPage').style.display = 'none';
+        document.getElementById('inputContainer').style.display = 'none';
         
         // Update welcome message with user's name
-        const welcomeName = document.getElementById('welcomeName');
-        if (welcomeName) welcomeName.textContent = displayName || 'User';
+        document.getElementById('welcomeName').textContent = displayName || 'User';
         
         // Show and enable input container for chat
+        const inputContainer = document.getElementById('inputContainer');
         const inputBox = document.getElementById('inputBox');
         const voiceButton = document.getElementById('voiceButton');
         
-        if (inputContainer) {
-          inputContainer.style.display = 'flex';
-          inputContainer.style.opacity = '0';
-          
-          // Fade in the input container
-          setTimeout(() => {
-            inputContainer.style.transition = 'opacity 0.5s ease-in-out';
-            inputContainer.style.opacity = '1';
-          }, 100);
-        }
-        
+        if (inputContainer) inputContainer.style.display = 'flex';
         if (inputBox) {
-          inputBox.disabled = false;
-          
-          // Focus the input box with a small delay
-          setTimeout(() => {
-            inputBox.focus();
-            console.log('Input box focused');
-          }, 100);
+            inputBox.disabled = false;
+            setTimeout(() => inputBox.focus(), 100);
         }
-        
         if (voiceButton) voiceButton.disabled = false;
         
-        console.log('Authentication flow completed successfully');
-        
+        console.log('Authentication successful, welcome page shown for', displayName);
       } catch (error) {
         console.error('Error in handleAuthSuccess:', error);
+        alert('Error during authentication: ' + error.message);
+      }
+    }
+    
+    function handleSignoutClick() {
+      console.log('handleSignoutClick called');
+      
+      // Get the sign out button and show loading state
+      const signOutBtn = document.getElementById('signout_button');
+      const originalButtonText = signOutBtn ? signOutBtn.innerHTML : '';
+      if (signOutBtn) {
+        signOutBtn.disabled = true;
+        signOutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing out...';
+      }
+      
+      // Show a message to the user
+      displayMessage('Signing out...', 'info');
+      
+      try {
+        // Clear any pending timeouts
+        if (window.authPopupTimeout) {
+          clearTimeout(window.authPopupTimeout);
+          delete window.authPopupTimeout;
+        }
         
-        // Show error to user
-        const loginContainer = document.getElementById('loginContainer');
-        if (loginContainer) {
-          const errorMessage = document.createElement('div');
-          errorMessage.className = 'error-message';
-          errorMessage.style.cssText = 'color: #ff4444; margin-top: 20px; padding: 10px; background: #ffebee; border-radius: 4px;';
-          errorMessage.textContent = `Error initializing the app: ${error.message || 'Unknown error occurred'}`;
-          
-          loginContainer.appendChild(errorMessage);
-          
-          // Reset button state
-          const authButton = document.getElementById('authorize_button');
-          if (authButton) {
-            authButton.textContent = 'Sign in with Google';
-            authButton.disabled = false;
+        // Clear the access token from Google API client
+        if (gapi.client) {
+          const token = gapi.client.getToken();
+          if (token && token.access_token) {
+            // Try to revoke the token
+            if (google && google.accounts && google.accounts.oauth2) {
+              try {
+                google.accounts.oauth2.revoke(token.access_token, () => {
+                  console.log('Access token revoked');
+                });
+              } catch (revokeError) {
+                console.warn('Error revoking token:', revokeError);
+                // Continue with sign out even if revoke fails
+              }
+            }
+            gapi.client.setToken(null);
+            console.log('Cleared gapi client token');
+          }
+        }
+        
+        // Clear the access token
+        accessToken = null;
+        
+        // Clear any stored tokens or user data
+        localStorage.removeItem('google_auth_token');
+        sessionStorage.clear();
+        
+        // Update UI to show logged out state
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('appLayout').style.display = 'none';
+        
+        // Reset the sign in button
+        const authButton = document.getElementById('authorize_button');
+        if (authButton) {
+          authButton.disabled = false;
+          authButton.style.display = 'inline-block';
+          authButton.innerHTML = '<i class="fab fa-google"></i> Sign in with Google';
+          authButton.style.backgroundColor = ''; // Reset any custom styles
+        }
+        
+        // Hide and disable input container
+        const inputContainer = document.getElementById('inputContainer');
+        const inputBox = document.getElementById('inputBox');
+        const voiceButton = document.getElementById('voiceButton');
+        
+        if (inputContainer) inputContainer.style.display = 'none';
+        if (inputBox) inputBox.disabled = true;
+        if (voiceButton) voiceButton.disabled = true;
+        
+        // Show success message
+        displayMessage('You have been successfully signed out.', 'success');
+        
+        console.log('Successfully signed out');
+        
+      } catch (error) {
+        console.error('Error signing out:', error);
+        
+        let errorMessage = 'Error signing out: ';
+        if (error.error) {
+          errorMessage += error.error;
+          if (error.error_description) {
+            errorMessage += ' - ' + error.error_description;
           }
         } else {
-          // Fallback if login container is not found
-          alert(`Error initializing the app: ${error.message || 'Unknown error occurred'}`);
+          errorMessage += error.message || 'Unknown error';
         }
         
-        // Re-throw the error to be caught by the caller if needed
-        throw error;
-      }
-    // Function to handle user sign out
-    function handleSignoutClick() {
-      console.log('Handling sign out...');
-      
-      // Revoke the OAuth token
-      const token = gapi.client.getToken();
-      if (token && token.access_token) {
-        try {
-          google.accounts.oauth2.revoke(token.access_token, () => {
-            console.log('Token revoked successfully');
-          });
-        } catch (error) {
-          console.warn('Error revoking token:', error);
+        displayMessage(errorMessage, 'error');
+      } finally {
+        // Always reset the sign out button
+        if (signOutBtn) {
+          signOutBtn.disabled = false;
+          signOutBtn.innerHTML = originalButtonText || '<i class="fas fa-sign-out-alt"></i> Sign out';
+          signOutBtn.style.display = 'none';
         }
-        
-        // Clear the token from gapi client
-        gapi.client.setToken(null);
       }
       
-      // Clear any stored tokens and reset state
-      accessToken = null;
-      gapiInited = false;
-      gisInited = false;
-      
-      // Reset UI to logged out state
-      const loginContainer = document.getElementById('loginContainer');
-      const appLayout = document.getElementById('appLayout');
-      const authButton = document.getElementById('authorize_button');
-      
-      if (loginContainer) {
-        loginContainer.style.display = 'flex';
-        loginContainer.style.opacity = '1';
-        loginContainer.style.pointerEvents = 'auto';
-      }
-      
-      if (appLayout) {
-        appLayout.style.display = 'none';
-      }
-      
-      if (authButton) {
-        authButton.textContent = 'Sign in with Google';
-        authButton.disabled = false;
-      }
-      
-      // Clear any error messages
-      const errorMessages = document.querySelectorAll('.error-message');
-      errorMessages.forEach(el => el.remove());
-      
-      // Reset the token client
-      tokenClient = null;
-      
-      console.log('Sign out completed');
-      }
-      accessToken = null;
-      
-      // Show login container and hide app layout
-      document.getElementById('loginContainer').style.display = 'flex';
-      document.getElementById('appLayout').style.display = 'none';
-      document.getElementById('authorize_button').style.display = 'inline-block';
-      document.getElementById('signout_button').style.display = 'none';
-      
-      // Hide and disable input container
-      const inputContainer = document.getElementById('inputContainer');
-      const inputBox = document.getElementById('inputBox');
-      const voiceButton = document.getElementById('voiceButton');
-      
-      if (inputContainer) inputContainer.style.display = 'none';
-      if (inputBox) inputBox.disabled = true;
-      if (voiceButton) voiceButton.disabled = true;
-      
-      // Reset chat message
-      const msg = document.getElementById('message');
-      if (msg) {
-        msg.innerHTML = '<strong>🤖 Assistant:</strong><br>You\'ve been signed out. Please sign in to continue.';
-      }
+      // Re-initialize the Google Identity Services for next sign-in
+      setTimeout(() => {
+        gisLoaded();
+      }, 1000);
     }
 
     // Demo mode - bypass OAuth for now
@@ -4374,313 +3516,136 @@ Respond with ONE short, direct question to get the missing information.`;
       gisLoaded();
     }
 
-    // Initialize Google APIs
-    const initGoogleApis = async () => {
+    function initializeUI() {
       try {
-        console.log('Initializing Google APIs...');
+        console.log('Initializing UI...');
         
-        // Initialize Google API client
-        await initializeGapi();
+        // Initialize UI elements with null checks
+        authBtn = document.getElementById('authorize_button');
+        inputBox = document.getElementById('inputBox');
+        msg = document.getElementById('message');
+        darkToggle = document.getElementById('darkToggle');
+        voiceButton = document.getElementById('voiceButton');
+        signOutBtn = document.getElementById('signout_button');
         
-        // Initialize Google Identity Services
-        gisLoaded();
+        // Set up auth button
+        setupAuthButton();
         
-        // Set up event listeners
-        setupNavigation();
-        
-        // Check for access token in URL (for OAuth redirect)
-        checkForAccessToken();
-        
-        console.log('Google APIs initialized');
-      } catch (error) {
-        console.error('Error initializing Google APIs:', error);
-        showError('Error initializing Google services. Please refresh the page.');
-      }
-    };
-
-    // View toggle functionality
-    function setupViewToggle() {
-        const chatViewBtn = document.getElementById('chatViewBtn');
-        const previewViewBtn = document.getElementById('previewViewBtn');
-        const chatView = document.getElementById('chatView');
-        const previewView = document.getElementById('previewView');
-        
-        if (!chatViewBtn || !previewViewBtn || !chatView || !previewView) return;
-        
-        // Show chat view by default
-        chatView.style.display = 'flex';
-        previewView.style.display = 'none';
-        
-        // Chat view button click handler
-        chatViewBtn.addEventListener('click', function() {
-            chatView.style.display = 'flex';
-            previewView.style.display = 'none';
-            chatViewBtn.classList.add('active');
-            previewViewBtn.classList.remove('active');
-        });
-        
-        // Preview view button click handler
-        previewViewBtn.addEventListener('click', function() {
-            chatView.style.display = 'none';
-            previewView.style.display = 'block';
-            chatViewBtn.classList.remove('active');
-            previewViewBtn.classList.add('active');
-            updateEventPreview();
-        });
-    }
-    
-    // Function to update the event preview
-    function updateEventPreview() {
-        if (!window.eventDetails) return;
-        
-        const previewTitle = document.getElementById('previewTitle');
-        const previewDateTime = document.getElementById('previewDateTime');
-        const previewAttendees = document.getElementById('previewAttendees');
-        const previewLocation = document.getElementById('previewLocation');
-        const createEventBtn = document.getElementById('createEventBtn');
-        
-        if (previewTitle) {
-            previewTitle.textContent = window.eventDetails.summary || 'No title provided';
+        // Set up input box
+        if (inputBox) {
+          inputBox.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              const message = inputBox.value.trim();
+              if (message) {
+                sendToLLM(message);
+                inputBox.value = '';
+              }
+            }
+          });
+        } else {
+          console.warn('Input box not found');
         }
         
-        if (previewDateTime) {
-            const dateTime = window.eventDetails.date && window.eventDetails.time 
-                ? `${window.eventDetails.date} at ${window.eventDetails.time}` 
-                : 'Not specified';
-            previewDateTime.textContent = dateTime;
+        // Set up voice button if it exists
+        if (voiceButton) {
+          setupVoiceRecognition();
+          voiceButton.onclick = () => {
+            if (recognition && inputBox && !inputBox.disabled) {
+              recognition.start();
+            }
+          };
+          console.log('Voice button initialized');
+        } else {
+          console.warn('Voice button not found in the DOM');
         }
         
-        if (previewAttendees) {
-            const attendees = window.eventDetails.attendees || 'Not specified';
-            const attendeeEmails = window.eventDetails.attendeeEmails?.length > 0 
-                ? ` (${window.eventDetails.attendeeEmails.join(', ')})` 
-                : '';
-            previewAttendees.textContent = `${attendees}${attendeeEmails}`;
-        }
-        
-        if (previewLocation) {
-            previewLocation.textContent = window.eventDetails.location || 'Not specified';
-        }
-        
-        // Enable/disable create event button based on required fields
-        if (createEventBtn) {
-            const hasRequiredFields = window.eventDetails.date && 
-                                   window.eventDetails.time && 
-                                   window.eventDetails.attendees && 
-                                   window.eventDetails.location;
-            createEventBtn.disabled = !hasRequiredFields;
-        }
-    }
-    
-    // Make updateEventPreview available globally
-    window.updateEventPreview = updateEventPreview;
-    
-    // Show welcome preview by default
-    document.addEventListener('DOMContentLoaded', function() {
-        const welcomePreview = document.getElementById('welcomePreview');
-        const appLayout = document.getElementById('appLayout');
-        const getStartedBtn = document.getElementById('getStartedBtn');
-        
-        // Show welcome preview initially
-        if (welcomePreview) {
-            welcomePreview.style.display = 'flex';
-            appLayout.style.display = 'none';
-        }
-        
-        // Handle Get Started button click
-        if (getStartedBtn) {
-            getStartedBtn.addEventListener('click', function() {
-                if (welcomePreview) welcomePreview.style.display = 'none';
-                if (appLayout) appLayout.style.display = 'flex';
-                
-                // Trigger Google Sign-In
-                const signInBtn = document.getElementById('authorize_button');
-                if (signInBtn) signInBtn.click();
-            });
-        }
-    });
-    
-    // Initialize the app when the page loads
-    window.onload = function() {
-      console.log('Page loaded, initializing app...');
-      
-      // Set up view toggle functionality
-      setupViewToggle();
-      
-      // Set up navigation between welcome and chat
-      const welcomeBtn = document.getElementById('welcomeBtn');
-      const chatBtn = document.getElementById('chatBtn');
-      const welcomePage = document.getElementById('welcomePage');
-      const chatPage = document.getElementById('chatPage');
-      const newEventBtn = document.getElementById('newEventBtn');
-      
-      if (welcomeBtn && chatBtn && welcomePage && chatPage) {
-          welcomeBtn.addEventListener('click', function() {
-              welcomePage.classList.add('active');
-              chatPage.classList.remove('active');
-              welcomeBtn.classList.add('active');
-              chatBtn.classList.remove('active');
+        // Set up dark mode toggle if it exists
+        if (darkToggle) {
+          darkToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            // Save preference
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
           });
           
-          chatBtn.addEventListener('click', function() {
-              welcomePage.classList.remove('active');
-              chatPage.classList.add('active');
-              welcomeBtn.classList.remove('active');
-              chatBtn.classList.add('active');
-          });
-      }
-      
-      // Handle New Event button click
-      if (newEventBtn && chatBtn) {
-          newEventBtn.addEventListener('click', function() {
-              // Switch to chat view
-              chatBtn.click();
-              
-              // Focus the input field
-              const inputBox = document.getElementById('inputBox');
-              if (inputBox) {
-                  inputBox.focus();
-              }
-          });
-      }
-      
-      
-      // Set base date for the session
-      baseDate = new Date();
-      console.log('Base date set to:', baseDate);
-      
-      // Initialize Google APIs
-      initGoogleApis();
-      
-      // Create floating particles
-      createParticles();
-      
-      // Register Service Worker if available
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-          .then((registration) => {
-            console.log('Service Worker registered: ', registration);
-          })
-          .catch((registrationError) => {
-            console.log('Service Worker registration failed: ', registrationError);
-          });
-      }
-      
-      // Initialize welcome page functionality
-      const getStartedBtn = document.getElementById('getStartedBtn');
-      if (getStartedBtn) {
-        getStartedBtn.addEventListener('click', function() {
-          document.getElementById('welcomeContainer').style.display = 'none';
-          document.getElementById('loginContainer').style.display = 'block';
-        });
-      }
-      
-      // Handle Back to Welcome from login
-      const signOutBtn = document.getElementById('signout_button');
-      if (signOutBtn) {
-        signOutBtn.addEventListener('click', function() {
-          document.getElementById('loginContainer').style.display = 'none';
-          document.getElementById('welcomeContainer').style.display = 'block';
-          document.getElementById('appLayout').classList.remove('active');
-        });
-      }
-      
-      // Add smooth scrolling to chat
-      const chatContainer = document.getElementById('chatContainer');
-      if (chatContainer) {
-        chatContainer.style.scrollBehavior = 'smooth';
-      }
-    </script>
-    
-    <script>
-        // View Toggle Functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const chatViewBtn = document.getElementById('chatViewBtn');
-            const previewViewBtn = document.getElementById('previewViewBtn');
-            const chatView = document.getElementById('chatView');
-            const previewView = document.getElementById('previewView');
-            
-            if (chatViewBtn && previewViewBtn && chatView && previewView) {
-                // Show chat view by default
-                chatView.style.display = 'flex';
-                previewView.style.display = 'none';
-                
-                // Chat view button click handler
-                chatViewBtn.addEventListener('click', function() {
-                    chatView.style.display = 'flex';
-                    previewView.style.display = 'none';
-                    chatViewBtn.classList.add('active');
-                    previewViewBtn.classList.remove('active');
-                });
-                
-                // Preview view button click handler
-                previewViewBtn.addEventListener('click', function() {
-                    chatView.style.display = 'none';
-                    previewView.style.display = 'block';
-                    chatViewBtn.classList.remove('active');
-                    previewViewBtn.classList.add('active');
-                    updateEventPreview();
-                });
-                
-                // Initialize with chat view active
-                chatViewBtn.classList.add('active');
-            }
-            
-            // Auto-resize textarea
-            const messageInput = document.getElementById('messageInput');
-            if (messageInput) {
-                messageInput.addEventListener('input', function() {
-                    this.style.height = 'auto';
-                    this.style.height = (this.scrollHeight) + 'px';
-                });
-            }
-        });
-        
-        // Function to update the event preview
-        function updateEventPreview() {
-            if (!window.eventDetails) return;
-            
-            const previewTitle = document.getElementById('previewTitle');
-            const previewDateTime = document.getElementById('previewDateTime');
-            const previewAttendees = document.getElementById('previewAttendees');
-            const previewLocation = document.getElementById('previewLocation');
-            const createEventBtn = document.getElementById('createEventBtn');
-            
-            if (previewTitle) {
-                previewTitle.textContent = window.eventDetails.summary || 'No title provided';
-            }
-            
-            if (previewDateTime) {
-                const dateTime = window.eventDetails.date && window.eventDetails.time 
-                    ? `${window.eventDetails.date} at ${window.eventDetails.time}` 
-                    : 'Not specified';
-                previewDateTime.textContent = dateTime;
-            }
-            
-            if (previewAttendees) {
-                const attendees = window.eventDetails.attendees || 'Not specified';
-                const attendeeEmails = window.eventDetails.attendeeEmails?.length > 0 
-                    ? ` (${window.eventDetails.attendeeEmails.join(', ')})` 
-                    : '';
-                previewAttendees.textContent = `${attendees}${attendeeEmails}`;
-            }
-            
-            if (previewLocation) {
-                previewLocation.textContent = window.eventDetails.location || 'Not specified';
-            }
-            
-            // Enable/disable create event button based on required fields
-            if (createEventBtn) {
-                const hasRequiredFields = window.eventDetails.date && 
-                                       window.eventDetails.time && 
-                                       window.eventDetails.attendees && 
-                                       window.eventDetails.location;
-                createEventBtn.disabled = !hasRequiredFields;
-            }
+          // Load dark mode preference
+          if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+          }
+        } else {
+          console.warn('Dark mode toggle not found');
         }
         
-        // Make updateEventPreview available globally
-        window.updateEventPreview = updateEventPreview;
-    </script>
+        // Set up sign out button if it exists
+        if (signOutBtn) {
+          signOutBtn.onclick = handleSignoutClick;
+          console.log('Sign out button initialized');
+        } else {
+          console.warn('Sign out button not found');
+        }
+        
+        console.log('UI initialization complete');
+      } catch (error) {
+        console.error('Error initializing UI:', error);
+      }
+    }
+    
+    // Input box event listener is already set up in initializeUI()
+    // No need for duplicate code here
+    
+    // Initialize the app when the window loads
+    window.onload = function() {
+      try {
+        // Initialize UI elements first
+        initializeUI();
+        
+        // Check if we already have an access token from OAuth redirect
+        checkForAccessToken();
+        
+        // Start initialization with a small delay to ensure scripts are loaded
+        setTimeout(initializeAPIs, 500);
+        
+        // Set base date for the session
+        baseDate = new Date();
+        console.log('Session started with base date:', baseDate.toLocaleString());
+        
+        // Create floating particles
+        createParticles();
+        
+        // Register PWA Service Worker
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        }
+        
+        // Initialize welcome page functionality
+        const getStartedBtn = document.getElementById('getStartedBtn');
+        if (getStartedBtn) {
+          getStartedBtn.addEventListener('click', function() {
+            const welcomeContainer = document.getElementById('welcomeContainer');
+            const loginContainer = document.getElementById('loginContainer');
+            if (welcomeContainer && loginContainer) {
+              welcomeContainer.style.display = 'none';
+              loginContainer.style.display = 'block';
+            }
+          });
+        }
+        
+        // Add smooth scrolling to chat
+        const chatContainer = document.getElementById('chatContainer');
+        if (chatContainer) {
+          chatContainer.style.scrollBehavior = 'smooth';
+        }
+      } catch (error) {
+        console.error('Error during app initialization:', error);
+        displayMessage('An error occurred while initializing the app. Please refresh the page.', 'error');
+      }
+    };
+</script>
 </body>
 </html>

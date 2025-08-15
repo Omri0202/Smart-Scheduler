@@ -2,221 +2,568 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Scheduler - Simple Sign In</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: #f0f2f5;
-        }
-        .login-box {
-            text-align: center;
-            padding: 2rem;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        #google-signin-button {
-            margin: 1.5rem 0;
-            display: flex;
-            justify-content: center;
-        }
-        #status {
-            margin-top: 1rem;
-            color: #d32f2f;
-            min-height: 1.5em;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Smart Scheduler</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="src/css/styles.css">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Google API -->
+    <script src="https://apis.google.com/js/api.js" defer></script>
+    <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
-    <div class="login-box">
-        <h1>Smart Scheduler</h1>
-        <p>Sign in to continue</p>
+    <!-- Floating Particles Background -->
+    <div class="floating-particles" id="particles"></div>
+    
+    <!-- Welcome Screen -->
+    <div id="welcomeContainer" class="welcome-container">
+        <div class="welcome-card">
+            <img src="logo.png" alt="Smart Scheduler" class="app-logo">
+            <h1>Smart Scheduler</h1>
+            <p>Your intelligent scheduling assistant powered by AI</p>
+            <button id="getStartedBtn" class="primary-button">Get Started</button>
+        </div>
+    </div>
+    
+    <!-- Login Container -->
+    <div id="loginContainer" class="login-container" style="display: none;">
+        <div class="login-card">
+            <div class="login-header">
+                <img src="logo.png" alt="Smart Scheduler" class="login-logo">
+                <h1>Smart Scheduler</h1>
+                <p>Your intelligent scheduling assistant</p>
+            </div>
+            
+            <div class="login-content">
+                <h2>Welcome Back</h2>
+                <p class="login-subtitle">Sign in to access your schedule and manage events</p>
+                
+                <div class="login-options">
+                    <button id="googleSignInBtn" class="google-signin-btn">
+                        <img src="https://www.google.com/favicon.ico" alt="Google" class="provider-icon">
+                        <span>Continue with Google</span>
+                    </button>
+                    
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+                    
+                    <div class="email-signin">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="Enter your email" class="form-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" placeholder="Enter your password" class="form-input">
+                            <a href="#" class="forgot-password">Forgot password?</a>
+                        </div>
+                        
+                        <button id="emailSignInBtn" class="primary-button">Sign In</button>
+                    </div>
+                </div>
+                
+                <div class="login-footer">
+                    <p>Don't have an account? <a href="#" id="signUpLink">Sign up</a></p>
+                    <button id="testButton" class="demo-button">Try Demo Mode</button>
+                </div>
+            </div>
+            
+            <div class="login-features">
+                <h3>Smart Scheduling Made Easy</h3>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> Natural language event creation</li>
+                    <li><i class="fas fa-check-circle"></i> Smart calendar management</li>
+                    <li><i class="fas fa-check-circle"></i> Voice command support</li>
+                    <li><i class="fas fa-check-circle"></i> Cross-platform sync</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main App (initially hidden) -->
+    <div id="appContainer" class="app-container" style="display: none;">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="logo.png" alt="Smart Scheduler" class="logo">
+                <h1>Smart Scheduler</h1>
+            </div>
+            
+            <nav class="nav-links">
+                <a href="#" class="nav-link active">Home</a>
+                <a href="#" class="nav-link">Calendar</a>
+                <a href="#" class="nav-link">Settings</a>
+            </nav>
+            
+            <div class="user-actions">
+                <div class="user-info">
+                    <img id="userAvatar" src="" alt="User" class="user-avatar">
+                    <span id="userName"></span>
+                </div>
+                <button id="signOutBtn" class="sign-out-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </button>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </header>
         
-        <!-- Google Sign-In Button -->
-        <div id="google-signin-button"></div>
+        <!-- Mobile Menu -->
+        <div class="mobile-menu" id="mobileMenu">
+            <div class="mobile-menu-header">
+                <h3 class="mobile-menu-title">Menu</h3>
+                <button class="close-menu-btn" id="closeMenuBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <nav class="mobile-nav-links">
+                <a href="#" class="mobile-nav-link active">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="#" class="mobile-nav-link">
+                    <i class="fas fa-calendar"></i>
+                    <span>Calendar</span>
+                </a>
+                <a href="#" class="mobile-nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="mobile-user-profile">
+                <div class="mobile-user-info">
+                    <img id="mobileUserAvatar" src="" alt="User" class="mobile-user-avatar">
+                    <div class="mobile-user-details">
+                        <h4 id="mobileUserName">User Name</h4>
+                        <p id="mobileUserEmail">user@example.com</p>
+                    </div>
+                </div>
+                
+                <div class="mobile-menu-footer">
+                    <button class="mobile-menu-btn-secondary" id="mobileSignOutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </div>
         
-        <div id="status"></div>
+        <!-- Overlay -->
+        <div class="overlay" id="overlay"></div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer">
+                <div class="welcome-message">
+                    <h2>Welcome to Smart Scheduler</h2>
+                    <p>I'm your AI scheduling assistant. How can I help you today?</p>
+                    <div class="suggestions">
+                        <button class="suggestion-btn">Schedule a meeting</button>
+                        <button class="suggestion-btn">Check my calendar</button>
+                        <button class="suggestion-btn">Set a reminder</button>
+                    </div>
+                </div>
+                
+                <div class="messages" id="messages">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+                
+                <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="input-container" id="inputContainer">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="inputBox" 
+                        placeholder="Type your message or say something..."
+                        autocomplete="off"
+                    >
+                    <button id="voiceButton" class="voice-button">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="sendButton" class="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="voice-recording" id="voiceRecording" style="display: none;">
+                    <div class="recording-indicator">
+                        <span class="pulse"></span>
+                        <span>Listening...</span>
+                    </div>
+                    <button id="stopRecording" class="stop-recording">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <!-- Load Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- JavaScript Files -->
+    <script src="src/js/config.js"></script>
+    <script src="src/js/utils.js"></script>
+    <script src="src/js/auth.js"></script>
+    <script src="src/js/calendar.js"></script>
+    <script src="src/js/llm.js"></script>
+    <script src="src/js/ui.js"></script>
+    <script src="src/js/main.js"></script>
     
     <script>
-        // Check if running as local file
-        if (window.location.protocol === 'file:') {
-            const status = document.getElementById('status');
-            if (status) {
-                status.innerHTML = `
-                    <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 4px; margin: 10px 0;">
-                        <strong>Error:</strong> This page must be run through a web server, not as a local file.<br><br>
-                        <strong>Quick Fix:</strong> Open a terminal in this folder and run one of these commands, then visit http://localhost:8000
-                        <ul style="text-align: left; margin: 10px 0 0 20px;">
-                            <li>Python: <code>python -m http.server 8000</code></li>
-                            <li>Node.js: <code>npx http-server -p 8000</code></li>
-                            <li>PHP: <code>php -S localhost:8000</code></li>
-                        </ul>
-                    </div>
-                `;
-            }
-            throw new Error('Must be run through a web server');
-        }
-
-        // Configuration
-        const CLIENT_ID = '251900786787-rs2a373jkaetk9lmh49nch3tq5p3lnhp.apps.googleusercontent.com';
-        let tokenClient; // Will hold the token client instance
+        // Google API configuration
+        const API_KEY = 'YOUR_GOOGLE_API_KEY';
+        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
         
-        // Debug function
-        function debugLog(message, data = '') {
-            console.log(`[DEBUG] ${message}`, data);
-            const status = document.getElementById('status');
-            if (status) {
-                status.textContent = message;
-            }
-        }
-
-        // Initialize Google Identity Services
-        function initGoogleIdentity() {
-            try {
-                // Initialize the token client
-                tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: CLIENT_ID,
-                    scope: 'https://www.googleapis.com/auth/calendar',
-                    callback: (response) => {
-                        if (response.error) {
-                            debugLog('Error during token request: ' + response.error);
-                            return;
-                        }
-                        // Handle successful token response
-                        debugLog('Access token received');
-                        // You can now use the access token to make API calls
-                        // For example: listCalendarEvents(response.access_token);
-                    },
-                    error_callback: (error) => {
-                        console.error('Token Client Error:', error);
-                        debugLog('Error during authentication');
-                    }
-                });
-                
-                // Initialize the Google Identity Services
-                google.accounts.id.initialize({
-                    client_id: CLIENT_ID,
-                    callback: handleCredentialResponse,
-                    auto_select: false,
-                    cancel_on_tap_outside: true
-                });
-                
-                // Render the sign-in button
-                google.accounts.id.renderButton(
-                    document.getElementById('google-signin-button'),
-                    {
-                        type: 'standard',
-                        theme: 'outline',
-                        size: 'large',
-                        text: 'signin_with',
-                        width: 250
-                    }
-                );
-                
-                // Try to show the One Tap prompt
-                google.accounts.id.prompt(notification => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        debugLog('One Tap UI not shown (user might have dismissed it)');
-                    }
-                });
-                
-                debugLog('Google Sign-In initialized');
-                
-            } catch (error) {
-                console.error('Error initializing Google Sign-In:', error);
-                debugLog('Error initializing Google Sign-In');
-            }
-        }
+        // Global variables
+        let tokenClient;
+        let accessToken = '';
+        let gapiInited = false;
+        let gisInited = false;
         
-        function handleCredentialResponse(response) {
-            console.log('Google Sign-In response received');
-            const statusDiv = document.getElementById('status');
+        // DOM elements
+        const loginContainer = document.getElementById('loginContainer');
+        const appContainer = document.getElementById('appContainer');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const mobileSignOutBtn = document.getElementById('mobileSignOutBtn');
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const closeMenuBtn = document.getElementById('closeMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const overlay = document.getElementById('overlay');
+        const inputBox = document.getElementById('inputBox');
+        const sendButton = document.getElementById('sendButton');
+        const voiceButton = document.getElementById('voiceButton');
+        const voiceRecording = document.getElementById('voiceRecording');
+        const stopRecording = document.getElementById('stopRecording');
+        const chatContainer = document.getElementById('chatContainer');
+        const testButton = document.getElementById('testButton');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const emailSignInBtn = document.getElementById('emailSignInBtn');
+        const signUpLink = document.getElementById('signUpLink');
+        
+        // Check if the browser supports speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
             
-            if (response.credential) {
-                // ID token is available, user is signed in
-                statusDiv.style.color = 'green';
-                statusDiv.textContent = 'Success! Signing you in...';
-                
-                // Here you can decode the ID token if needed
-                // const responsePayload = decodeJwtResponse(response.credential);
-                
-                // Request access token for Google APIs
-                if (tokenClient) {
-                    tokenClient.requestAccessToken();
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                inputBox.value = transcript;
+                handleSendMessage();
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showMessage('System', 'Error: Could not process voice input. Please try again.', 'error');
+            };
+        }
+        
+        // Initialize the application
+        function initApp() {
+            setupEventListeners();
+            checkAuthStatus();
+            
+            // Load Google API client library and set up auth
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.onload = () => {
+                gapi.load('client', initializeGapiClient);
+            };
+            document.head.appendChild(script);
+            
+            // Load Google Identity Services
+            const gisScript = document.createElement('script');
+            gisScript.src = 'https://accounts.google.com/gsi/client';
+            gisScript.async = true;
+            gisScript.defer = true;
+            gisScript.onload = gisLoaded;
+            document.head.appendChild(gisScript);
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Mobile menu toggle
+            mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            closeMenuBtn.addEventListener('click', closeMobileMenu);
+            overlay.addEventListener('click', closeMobileMenu);
+            
+            // Sign out buttons
+            signOutBtn.addEventListener('click', handleSignOut);
+            mobileSignOutBtn.addEventListener('click', handleSignOut);
+            
+            // Send message on button click or Enter key
+            sendButton.addEventListener('click', handleSendMessage);
+            inputBox.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
                 }
-                
-                // Redirect or update UI as needed
-                setTimeout(() => {
-                    // In a real app, you would redirect to your dashboard
-                    // window.location.href = '/dashboard.html';
-                    alert('Successfully signed in!');
-                }, 1000);
+            });
+            
+            // Voice input
+            if (recognition) {
+                voiceButton.addEventListener('click', toggleVoiceInput);
+                stopRecording.addEventListener('click', stopVoiceInput);
             } else {
-                // Handle error
-                statusDiv.style.color = 'red';
-                statusDiv.textContent = 'Error during sign-in. Please try again.';
-                console.error('Sign-in error:', response);
+                voiceButton.style.display = 'none';
+            }
+            
+            // Authentication
+            googleSignInBtn.addEventListener('click', handleAuthClick);
+            emailSignInBtn.addEventListener('click', handleEmailSignIn);
+            signUpLink.addEventListener('click', handleSignUp);
+            
+            // Test button (demo mode)
+            testButton.addEventListener('click', () => {
+                // Show the app layout for testing
+                loginContainer.style.display = 'none';
+                appContainer.style.display = 'block';
+                inputBox.disabled = false;
+                sendButton.disabled = false;
+                showMessage('System', 'Demo mode activated. You can test the chat functionality.', 'system');
+            });
+            
+            // Suggestion buttons
+            document.querySelectorAll('.suggestion-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    inputBox.value = e.target.textContent;
+                    handleSendMessage();
+                });
+            });
+        }
+        
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            mobileMenu.classList.add('show');
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // Close mobile menu
+        function closeMobileMenu() {
+            mobileMenu.classList.remove('show');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // Handle send message
+        function handleSendMessage() {
+            const message = inputBox.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            showMessage('You', message, 'user');
+            inputBox.value = '';
+            
+            // Show typing indicator
+            const typingIndicator = document.getElementById('typingIndicator');
+            typingIndicator.style.display = 'flex';
+            
+            // Simulate AI response (replace with actual API call)
+            setTimeout(() => {
+                typingIndicator.style.display = 'none';
+                showMessage('Assistant', 'This is a demo response. In the full version, I would process your request and help you schedule events.', 'assistant');
+            }, 1500);
+        }
+        
+        // Toggle voice input
+        function toggleVoiceInput() {
+            if (!recognition) return;
+            
+            try {
+                recognition.start();
+                voiceButton.style.display = 'none';
+                voiceRecording.style.display = 'flex';
+            } catch (error) {
+                console.error('Error starting voice recognition:', error);
+                showMessage('System', 'Error: Could not access microphone. Please check permissions.', 'error');
             }
         }
         
-        // Helper function to decode JWT
-        function decodeJwtResponse(token) {
-            const base64Url = token.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-            return JSON.parse(jsonPayload);
+        // Stop voice input
+        function stopVoiceInput() {
+            if (recognition) {
+                recognition.stop();
+            }
+            voiceRecording.style.display = 'none';
+            voiceButton.style.display = 'flex';
         }
         
-        // Initialize when the page loads
-        window.onload = function() {
-            console.log('Page loaded, initializing Google Sign-In...');
+        // Show message in chat
+        function showMessage(sender, text, type = 'user') {
+            const messagesContainer = document.getElementById('messages');
             
-            // Function to check if Google script is loaded
-            function checkGoogleScript() {
-                if (window.google && google.accounts) {
-                    console.log('Google script loaded, initializing...');
-                    initGoogleIdentity();
-                    return true;
-                }
-                return false;
+            // Create message element
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}`;
+            
+            // Add avatar for assistant messages
+            if (type === 'assistant') {
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.innerHTML = '<i class="fas fa-robot"></i>';
+                messageElement.appendChild(avatar);
             }
             
-            // Try to initialize immediately
-            if (!checkGoogleScript()) {
-                console.log('Google script not loaded yet, waiting...');
-                // If not loaded, set up a listener for the script load
-                const checkScript = setInterval(() => {
-                    if (checkGoogleScript()) {
-                        clearInterval(checkScript);
-                    }
-                }, 100);
-                
-                // Set a timeout in case the script fails to load
-                setTimeout(() => {
-                    if (!window.google || !google.accounts) {
-                        clearInterval(checkScript);
-                        console.error('Google Sign-In script failed to load');
-                        const status = document.getElementById('status');
-                        if (status) {
-                            status.textContent = 'Error: Could not load Google Sign-In. Please refresh the page.';
-                            status.style.color = '#d32f2f';
+            // Create message content container
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // Add sender name
+            const senderElement = document.createElement('div');
+            senderElement.className = 'message-sender';
+            senderElement.textContent = sender;
+            messageContent.appendChild(senderElement);
+            
+            // Add message text
+            const textElement = document.createElement('div');
+            textElement.className = 'message-text';
+            textElement.textContent = text;
+            messageContent.appendChild(textElement);
+            
+            // Add timestamp
+            const timeElement = document.createElement('div');
+            timeElement.className = 'message-time';
+            timeElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageContent.appendChild(timeElement);
+            
+            // Add message content to message element
+            messageElement.appendChild(messageContent);
+            
+            // Add message to chat
+            messagesContainer.appendChild(messageElement);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Check authentication status
+        function checkAuthStatus() {
+            // In a real app, you would check for an existing session
+            // For now, we'll just show the login screen
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+        
+        // Handle sign out
+        function handleSignOut() {
+            // In a real app, you would sign out from Google and clear the session
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+            closeMobileMenu();
+            showMessage('System', 'You have been signed out.', 'system');
+        }
+        
+        // Handle email sign in
+        function handleEmailSignIn() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showMessage('System', 'Please enter both email and password.', 'error');
+                return;
+            }
+            
+            // In a real app, you would validate credentials with your backend
+            showMessage('System', 'Email authentication is not implemented in this demo. Please use Google Sign-In.', 'system');
+        }
+        
+        // Handle sign up
+        function handleSignUp(e) {
+            e.preventDefault();
+            showMessage('System', 'Account creation is not implemented in this demo. Please use Google Sign-In.', 'system');
+        }
+        
+        // Google API client initialization
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+        
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: 'YOUR_API_KEY', // Replace with your API key
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+        
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: 'YOUR_CLIENT_ID', // Replace with your client ID
+                scope: 'https://www.googleapis.com/auth/calendar',
+                callback: (response) => {
+                    if (response && response.access_token) {
+                        accessToken = response.access_token;
+                        localStorage.setItem('google_access_token', accessToken);
+                        
+                        if (elements.loginContainer) elements.loginContainer.style.display = 'none';
+                        if (elements.appLayout) elements.appLayout.style.display = 'block';
+                        
+                        // Load user profile
+                        loadUserProfile();
+                        
+                        // Add welcome message
+                        if (window.ui) {
+                            window.ui.addMessage("You've successfully signed in! How can I help you schedule today?", 'assistant');
                         }
                     }
-                }, 5000);
+                }
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+        
+        function maybeEnableButtons() {
+            if (elements.googleSignInBtn) {
+                elements.googleSignInBtn.style.display = gisInited ? 'block' : 'none';
             }
-        };
+        }
+        
+        function handleAuthClick() {
+            if (!accessToken) {
+                tokenClient.requestAccessToken();
+            } else {
+                google.accounts.oauth2.revoke(accessToken, () => {
+                    accessToken = null;
+                    localStorage.removeItem('google_access_token');
+                    
+                    if (elements.appLayout) elements.appLayout.style.display = 'none';
+                    if (elements.loginContainer) elements.loginContainer.style.display = 'flex';
+                    
+                    // Clear chat
+                    if (elements.chatContainer) elements.chatContainer.innerHTML = '';
+                });
+            }
+        }
     </script>
 </body>
 </html>
