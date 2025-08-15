@@ -24,7 +24,7 @@ class GoogleAPIHelper {
             });
 
             await window.gapi.client.init({
-                apiKey: '', // Not needed for OAuth flows
+                apiKey: window.CONFIG.GOOGLE.API_KEY,
                 discoveryDocs: window.CONFIG.GOOGLE.DISCOVERY_DOCS,
             });
 
