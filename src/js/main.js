@@ -13,19 +13,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.auth) {
             window.auth.init();
         } else {
-            utils.logger.error('Auth module not loaded');
+            window.utils.logger.error('Auth module not loaded');
         }
         
         // Check if running as PWA
-        if (utils.isPWA()) {
-            utils.logger.log('Running as PWA');
+        if (window.utils.isPWA()) {
+            window.utils.logger.log('Running as PWA');
             // Add any PWA-specific initialization here
         }
         
         // Check if running on mobile
-        if (utils.isMobile()) {
+        if (window.utils.isMobile()) {
             document.body.classList.add('mobile');
-            utils.logger.log('Running on mobile device');
+            window.utils.logger.log('Running on mobile device');
         }
         
         // Register service worker for PWA
@@ -33,10 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
-                        utils.logger.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        window.utils.logger.log('ServiceWorker registration successful with scope: ', registration.scope);
                     })
                     .catch(error => {
-                        utils.logger.error('ServiceWorker registration failed: ', error);
+                        window.utils.logger.error('ServiceWorker registration failed: ', error);
                     });
             });
         }
@@ -51,13 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Show install button if you have one
             // You can add your own install button logic here
-            utils.logger.log('App can be installed');
+            window.utils.logger.log('App can be installed');
         });
         
         // Show welcome screen by default
         window.ui.showWelcomeScreen();
         
-        utils.logger.log('Application initialized');
+        window.utils.logger.log('Application initialized');
     } catch (error) {
         console.error('Failed to initialize application:', error);
         // Show error message to user
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Handle window resize
-window.addEventListener('resize', utils.debounce(() => {
+window.addEventListener('resize', window.utils.debounce(() => {
     // Handle any responsive layout changes here
 }, 250));
 
