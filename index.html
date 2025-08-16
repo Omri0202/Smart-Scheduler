@@ -276,15 +276,6 @@
             border-left-color: #00aaff;
         }
 
-        .demo-note {
-            background: rgba(255, 193, 7, 0.1);
-            border: 2px solid #ffc107;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            font-size: 14px;
-        }
-
         .event-summary {
             background: rgba(40, 167, 69, 0.1);
             border: 2px solid #28a745;
@@ -294,10 +285,6 @@
             text-align: left;
         }
 
-        body.dark .demo-note {
-            background: rgba(255, 193, 7, 0.2);
-        }
-
         body.dark .event-summary {
             background: rgba(40, 167, 69, 0.2);
         }
@@ -305,7 +292,7 @@
 </head>
 <body>
     <div id="cornerText">let me plan your schedule</div>
-    <div id="darkToggle">🌙 Toggle Dark Mode</div>
+    <div id="darkToggle"> Toggle Dark Mode</div>
 
     <div id="container">
         <h2>Smart Scheduler</h2>
@@ -314,20 +301,12 @@
             <button id="signout_button" onclick="handleSignoutClick()" style="display: none;">Sign Out</button>
         </div>
         
-        <div class="demo-note">
-            <strong>📋 Demo Mode</strong><br>
-            This is a demonstration of the Smart Scheduler interface. In the full version, it would connect to Google Calendar and Together AI. Try typing scheduling requests below to see how the AI assistant works!
-        </div>
-        
-        <div id="message">
-            <span class="info">🤖 AI Assistant ready!</span><br>
-            Try typing something like: "Meeting with mom tomorrow at 2 PM at the coffee shop"
-        </div>
+        <div id="message"><span class="info">🔐 Sign in with Google Calendar to begin using Smart Scheduler</span></div>
         
         <div id="eventsList"></div>
     </div>
     
-    <div id="inputContainer">
+    <div id="inputContainer" style="display: none;">
         <input type="text" id="inputBox" placeholder="What are your plans? (e.g., 'Dentist appointment next Monday at 10 AM')" />
         <button id="voiceButton" title="Voice input (if supported)">🎤</button>
     </div>
@@ -494,12 +473,17 @@
                 signinBtn.style.display = 'none';
                 signoutBtn.style.display = 'inline-block';
                 inputBox.disabled = false;
-                document.getElementById('message').innerHTML = '<span class="success">✅ Successfully signed in! You can now create events.</span>';
+                document.getElementById('inputContainer').style.display = 'flex';
+                document.getElementById('message').innerHTML = `
+                    <span class="success">✅ Successfully signed in! You can now create events.</span><br><br>
+                    <span class="info">🤖 AI Assistant ready! Try typing something like: "Meeting with mom tomorrow at 2 PM at the coffee shop"</span>
+                `;
             } else {
                 signinBtn.style.display = 'inline-block';
                 signoutBtn.style.display = 'none';
                 inputBox.disabled = true;
-                document.getElementById('message').innerHTML = '<span class="info">Please sign in to create events.</span>';
+                document.getElementById('inputContainer').style.display = 'none';
+                document.getElementById('message').innerHTML = '<span class="info">🔐 Sign in with Google Calendar to begin using Smart Scheduler</span>';
             }
         }
 
@@ -510,6 +494,7 @@
                     'summary': eventDetails.title || 'New Event',
                     'location': eventDetails.location || '',
                     'description': 'Created with Smart Scheduler',
+                    'attendees': eventDetails.attendees || [],
                     'start': {
                         'dateTime': eventDetails.fullDateTime.toISOString(),
                         'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -544,9 +529,10 @@
         let eventDetails = {
             date: null,
             time: null,
-            attendees: null,
+            attendees: [],
             location: null,
-            title: null
+            title: null,
+            mentionedPeople: []
         };
         let createdEvents = [];
 
@@ -670,6 +656,22 @@
 
         function updateEventDetails(userInput) {
             const input = userInput.toLowerCase();
+            
+            // Reset mentioned people for new input
+            eventDetails.mentionedPeople = [];
+            
+            // Common family/friend names to look for
+            const peopleKeywords = ['mom', 'dad', 'father', 'mother', 'brother', 'sister', 
+                                 'wife', 'husband', 'girlfriend', 'boyfriend', 'friend', 
+                                 'colleague', 'boss', 'manager', 'assistant'];
+            
+            // Check for mentioned people
+            peopleKeywords.forEach(person => {
+                const regex = new RegExp(`\\b${person}\\b`, 'i');
+                if (regex.test(input) && !eventDetails.mentionedPeople.includes(person)) {
+                    eventDetails.mentionedPeople.push(person);
+                }
+            });
             
             // Extract title/activity
             if (!eventDetails.title) {
@@ -823,7 +825,6 @@
                 <p><strong>🕐 Time:</strong> ${event.time}</p>
                 <p><strong>📍 Location:</strong> ${event.location}</p>
                 <p><strong>👥 Attendees:</strong> ${event.attendees}</p>
-                <small><em>In the full version, this would be added to Google Calendar</em></small>
             `;
             
             eventsList.appendChild(eventDiv);
@@ -836,9 +837,47 @@
             inputBox.disabled = false;
         }
 
+        async function promptForEmail(person) {
+            return new Promise((resolve) => {
+                const email = prompt(`Please enter ${person}'s email address to invite them:`);
+                if (email && email.includes('@')) {
+                    if (!eventDetails.attendees) eventDetails.attendees = [];
+                    eventDetails.attendees.push({ email: email.trim() });
+                    showSuccess(`✅ ${person} (${email}) will be invited!`);
+                    resolve(true);
+                } else if (email === '') {
+                    showError(`No email provided. ${person} won't be invited.`);
+                    resolve(false);
+                } else {
+                    showError('Please enter a valid email address.');
+                    resolve(promptForEmail(person)); // Recursively prompt again
+                }
+            });
+        }
+
         async function processInput() {
             const text = inputBox.value.trim();
             if (!text) return;
+
+            // If we're in the middle of collecting emails, handle that first
+            if (window.collectingEmails && eventDetails.mentionedPeople && eventDetails.mentionedPeople.length > 0) {
+                const person = eventDetails.mentionedPeople[0];
+                const confirmed = confirm(`Would you like to invite ${person} to this event?`);
+                if (confirmed) {
+                    await promptForEmail(person);
+                }
+                eventDetails.mentionedPeople.shift();
+                
+                if (eventDetails.mentionedPeople.length === 0) {
+                    window.collectingEmails = false;
+                    // Continue with event creation
+                    const event = createEventSummary();
+                    displayEvent(event);
+                    await createCalendarEvent(event);
+                    resetSession();
+                }
+                return;
+            }
 
             // Check if user is signed in
             const token = localStorage.getItem('google_token');
@@ -861,19 +900,52 @@
             if (hasAllInfo) {
                 try {
                     const event = createEventSummary();
-                    // Create event in Google Calendar
-                    const googleEvent = await createCalendarEvent(event);
-                    createdEvents.push(event);
-                    displayEvent(event);
                     
-                    msg.innerHTML = `
-                        <span class="success">✅ Event created successfully in Google Calendar!</span>
-                        <div style="margin-top: 10px;">
-                            <a href="${googleEvent.result.htmlLink}" target="_blank" style="color: #4285f4; text-decoration: none;">
-                                View in Google Calendar
-                            </a>
-                        </div>
-                        <br>Ready for your next event.`;
+                    // Check if there are mentioned people to invite
+                    if (eventDetails.mentionedPeople && eventDetails.mentionedPeople.length > 0) {
+                        window.collectingEmails = true;
+                        const person = eventDetails.mentionedPeople[0];
+                        const confirmed = confirm(`Would you like to invite ${person} to this event?`);
+                        if (confirmed) {
+                            await promptForEmail(person);
+                        }
+                        eventDetails.mentionedPeople.shift();
+                        
+                        if (eventDetails.mentionedPeople.length === 0) {
+                            window.collectingEmails = false;
+                            // Create event with attendees
+                            const googleEvent = await createCalendarEvent(event);
+                            createdEvents.push(event);
+                            displayEvent(event);
+                            
+                            msg.innerHTML = `
+                                <span class="success">✅ Event created successfully in Google Calendar!</span>
+                                <div style="margin-top: 10px;">
+                                    <a href="${googleEvent.result.htmlLink}" target="_blank" style="color: #4285f4; text-decoration: none;">
+                                        View in Google Calendar
+                                    </a>
+                                </div>
+                                <br>Ready for your next event.`;
+                            resetSession();
+                        }
+                        return;
+                    } else {
+                        // No mentioned people, create event normally
+                        const googleEvent = await createCalendarEvent(event);
+                        createdEvents.push(event);
+                        displayEvent(event);
+                        
+                        msg.innerHTML = `
+                            <span class="success">✅ Event created successfully in Google Calendar!</span>
+                            <div style="margin-top: 10px;">
+                                <a href="${googleEvent.result.htmlLink}" target="_blank" style="color: #4285f4; text-decoration: none;">
+                                    View in Google Calendar
+                                </a>
+                            </div>
+                            <br>Ready for your next event.`;
+                        resetSession();
+                        return;
+                    }
                 } catch (error) {
                     console.error('Error creating event:', error);
                     msg.innerHTML = `
@@ -881,9 +953,9 @@
                         <div style="margin-top: 10px; color: #666; font-size: 14px;">
                             ${error.result ? error.result.error.message : 'Please try again.'}
                         </div>`;
+                    resetSession();
+                    return;
                 }
-                resetSession();
-                return;
             }
             
             // Generate AI response for missing information
