@@ -16,6 +16,7 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6366f1">
     <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
@@ -60,20 +61,20 @@
                         <span>or</span>
                     </div>
                     
-                    <div class="email-signin">
+                    <form class="email-signin" autocomplete="off">
                         <div class="form-group">
                             <label for="email">Email</label>
-                            <input type="email" id="email" placeholder="Enter your email" class="form-input">
+                            <input type="email" id="email" placeholder="Enter your email" class="form-input" autocomplete="email">
                         </div>
                         
                         <div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" placeholder="Enter your password" class="form-input">
+                            <input type="password" id="password" placeholder="Enter your password" class="form-input" autocomplete="current-password">
                             <a href="#" class="forgot-password">Forgot password?</a>
                         </div>
                         
-                        <button id="emailSignInBtn" class="primary-button">Sign In</button>
-                    </div>
+                        <button type="button" id="emailSignInBtn" class="primary-button">Sign In</button>
+                    </form>
                 </div>
                 
                 <div class="login-footer">
@@ -233,16 +234,8 @@
     <script type="module" src="src/js/main.js"></script>
     
     <script>
-        // Google API configuration
-        const API_KEY = 'YOUR_GOOGLE_API_KEY';
-        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-        
-        // Global variables
-        let tokenClient;
-        let accessToken = '';
-        let gapiInited = false;
-        let gisInited = false;
+        // Application initialization flag
+        let appInitialized = false;
         
         // DOM elements
         const loginContainer = document.getElementById('loginContainer');
@@ -288,24 +281,11 @@
         
         // Initialize the application
         function initApp() {
+            if (appInitialized) return;
+            appInitialized = true;
+            
             setupEventListeners();
             checkAuthStatus();
-            
-            // Load Google API client library and set up auth
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.onload = () => {
-                gapi.load('client', initializeGapiClient);
-            };
-            document.head.appendChild(script);
-            
-            // Load Google Identity Services
-            const gisScript = document.createElement('script');
-            gisScript.src = 'https://accounts.google.com/gsi/client';
-            gisScript.async = true;
-            gisScript.defer = true;
-            gisScript.onload = gisLoaded;
-            document.head.appendChild(gisScript);
         }
         
         // Set up event listeners
@@ -337,7 +317,37 @@
             }
             
             // Authentication
-            googleSignInBtn.addEventListener('click', handleAuthClick);
+            googleSignInBtn.addEventListener('click', async () => {
+                try {
+                    // Add loading state
+                    googleSignInBtn.classList.add('loading');
+                    googleSignInBtn.disabled = true;
+
+                    // Wait for auth module to be available if not ready
+                    if (!window.auth) {
+                        showMessage('System', 'Loading authentication system...', 'system');
+                        // Wait up to 5 seconds for auth to load
+                        for (let i = 0; i < 50; i++) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            if (window.auth) break;
+                        }
+                    }
+
+                    if (window.auth && typeof window.auth.signIn === 'function') {
+                        await window.auth.signIn();
+                    } else {
+                        console.error('Auth system not available');
+                        showMessage('System', 'Authentication system is not available. Please refresh the page.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Sign-in error:', error);
+                    showMessage('System', 'Sign-in failed. Please try again.', 'error');
+                } finally {
+                    // Remove loading state
+                    googleSignInBtn.classList.remove('loading');
+                    googleSignInBtn.disabled = false;
+                }
+            });
             emailSignInBtn.addEventListener('click', handleEmailSignIn);
             signUpLink.addEventListener('click', handleSignUp);
             
@@ -375,7 +385,7 @@
         }
         
         // Handle send message
-        function handleSendMessage() {
+        async function handleSendMessage() {
             const message = inputBox.value.trim();
             if (!message) return;
             
@@ -387,11 +397,20 @@
             const typingIndicator = document.getElementById('typingIndicator');
             typingIndicator.style.display = 'flex';
             
-            // Simulate AI response (replace with actual API call)
-            setTimeout(() => {
+            // Process message using real AI service
+            try {
+                if (window.llm && window.llm.isReady()) {
+                    const response = await window.llm.processInput(message);
+                    typingIndicator.style.display = 'none';
+                    showMessage('Assistant', response, 'assistant');
+                } else {
+                    throw new Error('AI service not available');
+                }
+            } catch (error) {
                 typingIndicator.style.display = 'none';
-                showMessage('Assistant', 'This is a demo response. In the full version, I would process your request and help you schedule events.', 'assistant');
-            }, 1500);
+                console.error('AI processing error:', error);
+                showMessage('Assistant', 'Sorry, I encountered an error processing your request. Please try again.', 'assistant');
+            }
         }
         
         // Toggle voice input
@@ -502,68 +521,8 @@
             showMessage('System', 'Account creation is not implemented in this demo. Please use Google Sign-In.', 'system');
         }
         
-        // Google API client initialization
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-        
-        async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: 'YOUR_API_KEY', // Replace with your API key
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
-            });
-            gapiInited = true;
-            maybeEnableButtons();
-        }
-        
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: 'YOUR_CLIENT_ID', // Replace with your client ID
-                scope: 'https://www.googleapis.com/auth/calendar',
-                callback: (response) => {
-                    if (response && response.access_token) {
-                        accessToken = response.access_token;
-                        localStorage.setItem('google_access_token', accessToken);
-                        
-                        if (elements.loginContainer) elements.loginContainer.style.display = 'none';
-                        if (elements.appLayout) elements.appLayout.style.display = 'block';
-                        
-                        // Load user profile
-                        loadUserProfile();
-                        
-                        // Add welcome message
-                        if (window.ui) {
-                            window.ui.addMessage("You've successfully signed in! How can I help you schedule today?", 'assistant');
-                        }
-                    }
-                }
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
-        
-        function maybeEnableButtons() {
-            if (elements.googleSignInBtn) {
-                elements.googleSignInBtn.style.display = gisInited ? 'block' : 'none';
-            }
-        }
-        
-        function handleAuthClick() {
-            if (!accessToken) {
-                tokenClient.requestAccessToken();
-            } else {
-                google.accounts.oauth2.revoke(accessToken, () => {
-                    accessToken = null;
-                    localStorage.removeItem('google_access_token');
-                    
-                    if (elements.appLayout) elements.appLayout.style.display = 'none';
-                    if (elements.loginContainer) elements.loginContainer.style.display = 'flex';
-                    
-                    // Clear chat
-                    if (elements.chatContainer) elements.chatContainer.innerHTML = '';
-                });
-            }
-        }
+        // Start the application when DOM is ready
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>

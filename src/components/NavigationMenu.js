@@ -8,7 +8,7 @@ class NavigationMenu {
         this.elements = {
             welcomeContainer: null,
             loginContainer: null,
-            appLayout: null
+            appContainer: null
         };
         this.hasShownWelcome = false;
     }
@@ -17,7 +17,7 @@ class NavigationMenu {
         this.elements = {
             welcomeContainer: document.getElementById('welcomeContainer'),
             loginContainer: document.getElementById('loginContainer'),
-            appLayout: document.getElementById('appLayout')
+            appContainer: document.getElementById('appContainer')
         };
     }
 
@@ -58,9 +58,15 @@ class NavigationMenu {
      */
     showApp(isDemo = false) {
         this.hideAllScreens();
-        if (this.elements.appLayout) {
-            this.elements.appLayout.style.display = 'flex';
-            this.elements.appLayout.style.opacity = '1';
+        if (this.elements.appContainer) {
+            this.elements.appContainer.style.display = 'block';
+            this.elements.appContainer.style.opacity = '1';
+            
+            // Hide the static welcome message
+            const welcomeMessage = document.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
             
             // Focus on input box
             const inputBox = document.getElementById('inputBox');
@@ -82,21 +88,23 @@ class NavigationMenu {
     hideAllScreens() {
         if (this.elements.welcomeContainer) this.elements.welcomeContainer.style.display = 'none';
         if (this.elements.loginContainer) this.elements.loginContainer.style.display = 'none';
-        if (this.elements.appLayout) this.elements.appLayout.style.display = 'none';
+        if (this.elements.appContainer) this.elements.appContainer.style.display = 'none';
     }
 
     /**
      * Show welcome message in chat
      */
     showWelcomeMessage() {
-        // This will be connected to ChatInterface
-        const event = new CustomEvent('addWelcomeMessage', {
-            detail: { 
-                message: "Hello! I'm your Smart Scheduler assistant. How can I help you today?",
-                type: 'assistant'
-            }
-        });
-        window.dispatchEvent(event);
+        // Small delay to ensure the chat interface is ready
+        setTimeout(() => {
+            const event = new CustomEvent('addWelcomeMessage', {
+                detail: { 
+                    message: "Welcome! I'm your Smart Scheduler assistant. I can help you schedule meetings, check your calendar, and manage your events. What would you like to do today?",
+                    type: 'assistant'
+                }
+            });
+            window.dispatchEvent(event);
+        }, 500);
     }
 
     /**
@@ -109,7 +117,7 @@ class NavigationMenu {
         if (this.elements.loginContainer && this.elements.loginContainer.style.display !== 'none') {
             return 'login';
         }
-        if (this.elements.appLayout && this.elements.appLayout.style.display !== 'none') {
+        if (this.elements.appContainer && this.elements.appContainer.style.display !== 'none') {
             return 'app';
         }
         return 'none';

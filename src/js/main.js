@@ -4,14 +4,54 @@
  */
 
 // Wait for DOM to be fully loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Initialize UI
         window.ui.init();
         
+        // Initialize LLM service
+        if (window.llm) {
+            try {
+                await window.llm.init();
+                console.log('LLM service initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize LLM service:', error);
+                window.ui.showError('AI service unavailable. Some features may not work properly.');
+            }
+        } else {
+            console.error('LLM service not loaded');
+        }
+
+        // Initialize Calendar service
+        if (window.calendar) {
+            try {
+                window.calendar.init();
+                console.log('Calendar service initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize Calendar service:', error);
+            }
+        } else {
+            console.error('Calendar service not loaded');
+        }
+        
         // Initialize authentication
         if (window.auth) {
             window.auth.init();
+            
+            // Add auth state listener to automatically show app when authenticated
+            window.auth.addAuthStateListener((isAuthenticated, userProfile) => {
+                console.log('Auth state changed:', { isAuthenticated, userProfile });
+                if (isAuthenticated && userProfile) {
+                    // User is authenticated, show the app
+                    console.log('Auth listener: showing app for authenticated user');
+                    window.ui.updateUserProfile(userProfile);
+                    window.ui.showApp();
+                } else {
+                    // User is not authenticated, show login screen
+                    console.log('Auth listener: showing login screen');
+                    window.ui.showLoginScreen();
+                }
+            });
         } else {
             utils.logger.error('Auth module not loaded');
         }
@@ -54,8 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
             utils.logger.log('App can be installed');
         });
         
-        // Show welcome screen by default
-        window.ui.showWelcomeScreen();
+        // Show welcome screen by default only if not authenticated
+        // The auth state listener will handle showing the correct screen
+        setTimeout(() => {
+            if (!window.auth.isAuthenticated()) {
+                window.ui.showWelcomeScreen();
+            }
+        }, 100);
         
         utils.logger.log('Application initialized');
     } catch (error) {

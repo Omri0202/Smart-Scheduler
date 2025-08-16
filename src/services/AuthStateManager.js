@@ -27,8 +27,21 @@ class AuthStateManager {
      */
     checkExistingAuth() {
         const token = this.tokenManager.getToken();
+        const storedProfile = localStorage.getItem('smart_scheduler_user_profile');
+        
         if (token) {
             this.isAuthenticated = true;
+            
+            // Restore user profile if available
+            if (storedProfile) {
+                try {
+                    this.userProfile = JSON.parse(storedProfile);
+                } catch (error) {
+                    console.error('Error parsing stored user profile:', error);
+                    localStorage.removeItem('smart_scheduler_user_profile');
+                }
+            }
+            
             this.notifyAuthStateChange(true);
         }
     }
@@ -43,6 +56,11 @@ class AuthStateManager {
         this.tokenManager.storeToken(accessToken, expiresIn);
         this.userProfile = profile;
         this.isAuthenticated = true;
+        
+        // Store user profile persistently
+        if (profile) {
+            localStorage.setItem('smart_scheduler_user_profile', JSON.stringify(profile));
+        }
         
         // Update global access token for GAPI
         if (window.gapi && window.gapi.client) {
@@ -59,6 +77,9 @@ class AuthStateManager {
         this.tokenManager.clearToken();
         this.userProfile = null;
         this.isAuthenticated = false;
+
+        // Clear stored user profile
+        localStorage.removeItem('smart_scheduler_user_profile');
 
         // Clear global access token
         if (window.gapi && window.gapi.client) {
@@ -102,6 +123,11 @@ class AuthStateManager {
      */
     updateUserProfile(profile) {
         this.userProfile = profile;
+        
+        // Store profile persistently
+        if (profile) {
+            localStorage.setItem('smart_scheduler_user_profile', JSON.stringify(profile));
+        }
         
         // Notify UI components about profile update
         const event = new CustomEvent('profileUpdated', {

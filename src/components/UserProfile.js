@@ -11,6 +11,11 @@ class UserProfile {
 
     init() {
         this.userProfileElement = document.getElementById('userProfile');
+        this.userAvatar = document.getElementById('userAvatar');
+        this.userName = document.getElementById('userName');
+        this.mobileUserAvatar = document.getElementById('mobileUserAvatar');
+        this.mobileUserName = document.getElementById('mobileUserName');
+        this.mobileUserEmail = document.getElementById('mobileUserEmail');
     }
 
     /**
@@ -21,19 +26,39 @@ class UserProfile {
         
         this.currentProfile = profile;
         
-        if (this.userProfileElement) {
-            // Update profile picture
+        // Update desktop user profile
+        if (this.userAvatar) {
             if (profile.picture) {
-                this.userProfileElement.style.backgroundImage = `url(${profile.picture})`;
-                this.userProfileElement.style.backgroundSize = 'cover';
-                this.userProfileElement.style.backgroundPosition = 'center';
+                this.userAvatar.src = profile.picture;
+                this.userAvatar.style.display = 'block';
+            } else {
+                // Use a default avatar or initials
+                this.userAvatar.src = this.generateDefaultAvatar(profile.name);
+                this.userAvatar.style.display = 'block';
             }
-            
-            // Update profile tooltip/title
-            if (profile.name) {
-                this.userProfileElement.setAttribute('title', profile.name);
-                this.userProfileElement.setAttribute('aria-label', `Profile: ${profile.name}`);
+            this.userAvatar.alt = profile.name || 'User';
+        }
+        
+        if (this.userName) {
+            this.userName.textContent = profile.name || 'User';
+        }
+        
+        // Update mobile user profile
+        if (this.mobileUserAvatar) {
+            if (profile.picture) {
+                this.mobileUserAvatar.src = profile.picture;
+            } else {
+                this.mobileUserAvatar.src = this.generateDefaultAvatar(profile.name);
             }
+            this.mobileUserAvatar.alt = profile.name || 'User';
+        }
+        
+        if (this.mobileUserName && profile.name) {
+            this.mobileUserName.textContent = profile.name;
+        }
+        
+        if (this.mobileUserEmail && profile.email) {
+            this.mobileUserEmail.textContent = profile.email;
         }
         
         // Dispatch profile update event
@@ -91,6 +116,20 @@ class UserProfile {
         // Dispatch profile cleared event
         const event = new CustomEvent('profileCleared');
         window.dispatchEvent(event);
+    }
+
+    /**
+     * Generate a default avatar using initials or placeholder
+     */
+    generateDefaultAvatar(name) {
+        if (!name || name === 'Unknown User') {
+            // Return a default user icon from a service like UI Avatars
+            return 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&size=128';
+        }
+        
+        // Generate avatar with user initials
+        const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=6366f1&color=fff&size=128`;
     }
 
     /**

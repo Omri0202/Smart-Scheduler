@@ -14,6 +14,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: 'localhost',
+    strictPort: true, // Don't try other ports if 5173 is busy
     headers: {
       // Security headers for development
       'X-Content-Type-Options': 'nosniff',

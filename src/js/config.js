@@ -3,7 +3,7 @@ const CONFIG = {
     // Google OAuth Configuration  
     GOOGLE: {
         CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || (() => {
-            console.error('VITE_GOOGLE_CLIENT_ID not configured');
+            console.warn('VITE_GOOGLE_CLIENT_ID not configured - Google authentication will not work');
             return 'GOOGLE_CLIENT_ID_NOT_CONFIGURED';
         })(),
         SCOPES: import.meta.env.VITE_GOOGLE_SCOPES || 'https://www.googleapis.com/auth/calendar',

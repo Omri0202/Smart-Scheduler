@@ -28,7 +28,7 @@ class ResponseFormatter {
      * @param {string} rawResponse - Raw response from LLM
      * @returns {string} - Formatted response
      */
-    formatResponse(rawResponse) {
+    async formatResponse(rawResponse) {
         if (!this.isInitialized) {
             throw new Error('Response Formatter not initialized');
         }
@@ -38,6 +38,9 @@ class ResponseFormatter {
         }
 
         let formattedResponse = rawResponse.trim();
+
+        // Process calendar actions first
+        formattedResponse = await this.processCalendarActions(formattedResponse);
 
         // Clean up common LLM artifacts
         formattedResponse = this.cleanResponse(formattedResponse);
@@ -49,6 +52,147 @@ class ResponseFormatter {
         formattedResponse = this.truncateResponse(formattedResponse);
 
         return formattedResponse;
+    }
+
+    /**
+     * Process calendar actions in the response
+     * @param {string} response - Response that may contain calendar actions
+     * @returns {Promise<string>} - Response with calendar actions processed
+     */
+    async processCalendarActions(response) {
+        const createEventPattern = /\[CREATE_EVENT\]([\s\S]*?)\[\/CREATE_EVENT\]/g;
+        const updateEventPattern = /\[UPDATE_EVENT:([^\]]+)\]([\s\S]*?)\[\/UPDATE_EVENT\]/g;
+
+        let processedResponse = response;
+        
+        // Process CREATE_EVENT actions
+        const createMatches = [...response.matchAll(createEventPattern)];
+        for (const match of createMatches) {
+            const eventData = this.parseEventData(match[1]);
+            const result = await this.createCalendarEvent(eventData);
+            processedResponse = processedResponse.replace(match[0], result);
+        }
+
+        // Process UPDATE_EVENT actions
+        const updateMatches = [...response.matchAll(updateEventPattern)];
+        for (const match of updateMatches) {
+            const eventId = match[1];
+            const updateData = this.parseEventData(match[2]);
+            const result = await this.updateCalendarEvent(eventId, updateData);
+            processedResponse = processedResponse.replace(match[0], result);
+        }
+
+        return processedResponse;
+    }
+
+    /**
+     * Parse event data from calendar action text
+     * @param {string} eventText - Text containing event data
+     * @returns {Object} - Parsed event data
+     */
+    parseEventData(eventText) {
+        const lines = eventText.trim().split('\n');
+        const eventData = {};
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.includes(':')) {
+                const [key, ...valueParts] = trimmedLine.split(':');
+                const value = valueParts.join(':').trim();
+                
+                switch (key.toLowerCase().trim()) {
+                    case 'title':
+                        eventData.summary = value;
+                        break;
+                    case 'date':
+                        eventData.date = value;
+                        break;
+                    case 'start':
+                        eventData.startTime = value;
+                        break;
+                    case 'end':
+                        eventData.endTime = value;
+                        break;
+                    case 'location':
+                        eventData.location = value;
+                        break;
+                    case 'description':
+                        eventData.description = value;
+                        break;
+                    case 'attendees':
+                        eventData.attendees = value.split(',').map(email => email.trim());
+                        break;
+                }
+            }
+        }
+
+        return eventData;
+    }
+
+    /**
+     * Create a calendar event using the calendar API
+     * @param {Object} eventData - Event data to create
+     * @returns {Promise<string>} - Result message
+     */
+    async createCalendarEvent(eventData) {
+        try {
+            if (!window.calendarAPI || !window.auth?.isAuthenticated()) {
+                return "⚠️ Calendar access not available. Please ensure you're signed in with Google Calendar access.";
+            }
+
+            // Format the event data for the API
+            const formattedEvent = {
+                summary: eventData.summary,
+                start: this.formatDateTime(eventData.date, eventData.startTime),
+                end: this.formatDateTime(eventData.date, eventData.endTime),
+                location: eventData.location || '',
+                description: eventData.description || '',
+                attendees: eventData.attendees || []
+            };
+
+            console.log('Creating calendar event:', formattedEvent);
+            const createdEvent = await window.calendarAPI.createEvent(formattedEvent);
+            
+            return `✅ Successfully created: "${eventData.summary}" on ${eventData.date} from ${eventData.startTime} to ${eventData.endTime}`;
+        } catch (error) {
+            console.error('Failed to create calendar event:', error);
+            return `❌ Failed to create calendar event: ${error.message}`;
+        }
+    }
+
+    /**
+     * Update a calendar event
+     * @param {string} eventId - Event ID to update
+     * @param {Object} updateData - Data to update
+     * @returns {Promise<string>} - Result message
+     */
+    async updateCalendarEvent(eventId, updateData) {
+        try {
+            if (!window.calendarAPI || !window.auth?.isAuthenticated()) {
+                return "⚠️ Calendar access not available. Please ensure you're signed in with Google Calendar access.";
+            }
+
+            console.log('Updating calendar event:', eventId, updateData);
+            const updatedEvent = await window.calendarAPI.updateEvent(eventId, updateData);
+            
+            return `✅ Successfully updated the event.`;
+        } catch (error) {
+            console.error('Failed to update calendar event:', error);
+            return `❌ Failed to update calendar event: ${error.message}`;
+        }
+    }
+
+    /**
+     * Format date and time for calendar API
+     * @param {string} date - Date in YYYY-MM-DD format
+     * @param {string} time - Time in HH:MM format
+     * @returns {string} - ISO datetime string
+     */
+    formatDateTime(date, time) {
+        if (!date || !time) return new Date().toISOString();
+        
+        const dateTime = new Date(`${date}T${time}:00`);
+        return dateTime.toISOString();
     }
 
     /**

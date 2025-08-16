@@ -119,6 +119,7 @@ const calendar = {
 
 // Make calendar available globally for backward compatibility
 window.calendar = calendar;
+window.calendarAPI = calendarService; // For MessageProcessor integration
 
 export { CalendarService };
 export default calendar;

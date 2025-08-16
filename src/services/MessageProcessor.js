@@ -57,14 +57,18 @@ class MessageProcessor {
             // Add user message to conversation history
             this.promptTemplates.addToHistory('user', validatedInput);
 
+            // Get real user and calendar context
+            const enrichedContext = await this.enrichContext(context);
+            console.log('Final enriched context for LLM:', enrichedContext);
+
             // Prepare the prompt with context and history
-            const messages = this.promptTemplates.preparePrompt(validatedInput, context);
+            const messages = this.promptTemplates.preparePrompt(validatedInput, enrichedContext);
 
             // Call LLM API
             const rawResponse = await this.llmClient.callAPI(messages);
 
-            // Format the response
-            const formattedResponse = this.responseFormatter.formatResponse(rawResponse);
+            // Format the response (now async to handle calendar actions)
+            const formattedResponse = await this.responseFormatter.formatResponse(rawResponse);
 
             // Add assistant response to history
             this.promptTemplates.addToHistory('assistant', formattedResponse);
@@ -79,6 +83,60 @@ class MessageProcessor {
             }
             throw error;
         }
+    }
+
+    /**
+     * Enrich context with real user and calendar data
+     * @param {Object} baseContext - Base context provided
+     * @returns {Promise<Object>} - Enriched context
+     */
+    async enrichContext(baseContext = {}) {
+        const enrichedContext = { ...baseContext };
+
+        try {
+            // Get user profile from auth
+            if (window.auth && window.auth.isAuthenticated()) {
+                const userProfile = window.auth.getUserProfile();
+                if (userProfile && userProfile.name !== 'Unknown User') {
+                    enrichedContext.userProfile = userProfile;
+                }
+            }
+
+            // Get upcoming calendar events if calendar API is available
+            if (window.calendarAPI && window.auth && window.auth.isAuthenticated()) {
+                try {
+                    const now = new Date();
+                    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    
+                    const eventsResponse = await window.calendarAPI.getEvents(now, nextWeek, 10);
+                    console.log('Calendar API response:', eventsResponse);
+                    if (eventsResponse && eventsResponse.items) {
+                        enrichedContext.calendarEvents = eventsResponse.items.map(event => ({
+                            summary: event.summary || 'Untitled Event',
+                            start: event.start?.dateTime || event.start?.date,
+                            end: event.end?.dateTime || event.end?.date,
+                            id: event.id
+                        }));
+                        console.log('Mapped calendar events for LLM context:', enrichedContext.calendarEvents);
+                    } else {
+                        console.log('No calendar events found in response');
+                    }
+                } catch (calendarError) {
+                    console.warn('Could not fetch calendar events:', calendarError);
+                    // Don't fail the whole request if calendar fetch fails
+                }
+            }
+
+            // Add current time and timezone
+            enrichedContext.currentTime = new Date().toLocaleString();
+            enrichedContext.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        } catch (error) {
+            console.warn('Error enriching context:', error);
+            // Return base context if enrichment fails
+        }
+
+        return enrichedContext;
     }
 
     /**

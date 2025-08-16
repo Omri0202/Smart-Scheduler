@@ -7,7 +7,7 @@ class LLMClient {
     constructor() {
         this.apiEndpoint = null;
         this.apiKey = null;
-        this.defaultModel = 'meta-llama/Llama-2-7b-chat-hf';
+        this.defaultModel = 'meta-llama/Llama-3.2-3B-Instruct-Turbo';
         this.maxTokens = 512;
         this.temperature = 0.7;
     }

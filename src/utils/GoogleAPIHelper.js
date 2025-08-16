@@ -44,6 +44,10 @@ class GoogleAPIHelper {
      */
     initTokenClient(callback) {
         try {
+            if (!window.CONFIG.GOOGLE.CLIENT_ID || window.CONFIG.GOOGLE.CLIENT_ID === 'GOOGLE_CLIENT_ID_NOT_CONFIGURED') {
+                throw new Error('Google Client ID not configured. Please check your environment variables.');
+            }
+
             const tokenClient = window.google.accounts.oauth2.initTokenClient({
                 client_id: window.CONFIG.GOOGLE.CLIENT_ID,
                 scope: window.CONFIG.GOOGLE.SCOPES,
@@ -67,8 +71,24 @@ class GoogleAPIHelper {
      */
     async fetchUserProfile(accessToken) {
         try {
-            const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
-            return response.ok ? await response.json() : { name: 'Unknown User', email: '', picture: '' };
+            // Try the userinfo endpoint with proper Authorization header
+            const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const profile = await response.json();
+                console.log('User profile fetched successfully:', profile);
+                return profile;
+            } else {
+                console.error('Failed to fetch user profile:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                return { name: 'Unknown User', email: '', picture: '' };
+            }
         } catch (error) {
             console.error('Error fetching user profile:', error);
             return { name: 'Unknown User', email: '', picture: '' };

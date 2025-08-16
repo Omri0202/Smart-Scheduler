@@ -58,7 +58,7 @@ class UIStateManager {
         this.elements = {
             welcomeContainer: document.getElementById('welcomeContainer'),
             loginContainer: document.getElementById('loginContainer'),
-            appLayout: document.getElementById('appLayout'),
+            appContainer: document.getElementById('appContainer'),
             chatContainer: document.getElementById('chatContainer'),
             inputBox: document.getElementById('inputBox'),
             sendButton: document.getElementById('sendButton'),

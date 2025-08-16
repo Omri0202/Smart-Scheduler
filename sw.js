@@ -2,10 +2,8 @@
 const CACHE_NAME = 'smart-scheduler-v1';
 const urlsToCache = [
   '/',
-  '/.idea/index.html',
-  'manifest.json',
-  'https://accounts.google.com/gsi/client',
-  'https://apis.google.com/js/api.js'
+  '/index.html',
+  'manifest.json'
 ];
 
 // Install event - cache resources
@@ -21,6 +19,11 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests and Google API calls
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

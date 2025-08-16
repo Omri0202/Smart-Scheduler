@@ -116,14 +116,66 @@ class GoogleAuthProvider {
         }
 
         if (this.authStateManager.getAuthStatus()) {
-            console.log('User already authenticated');
+            console.log('User already authenticated, showing app');
+            
+            // Get stored user profile and show the app
+            let userProfile = this.authStateManager.getUserProfile();
+            console.log('Retrieved user profile:', userProfile);
+            console.log('window.ui available:', !!window.ui);
+            
+            if (window.ui) {
+                if (userProfile) {
+                    // We have both token and profile, show app immediately
+                    try {
+                        console.log('Updating user profile...');
+                        window.ui.updateUserProfile(userProfile);
+                        console.log('Showing app...');
+                        window.ui.showApp();
+                        console.log('Showing success message...');
+                        window.ui.showSuccess('Welcome back!');
+                        console.log('Navigation completed successfully');
+                    } catch (error) {
+                        console.error('Error during UI navigation:', error);
+                    }
+                } else {
+                    // We have token but no profile, fetch it first
+                    console.log('No profile found, fetching user profile...');
+                    const token = this.authStateManager.getAccessToken();
+                    if (token) {
+                        try {
+                            userProfile = await this.googleAPIHelper.fetchUserProfile(token);
+                            console.log('Fetched user profile:', userProfile);
+                            
+                            // Update auth state with the profile
+                            this.authStateManager.updateUserProfile(userProfile);
+                            
+                            // Now show the app
+                            window.ui.updateUserProfile(userProfile);
+                            window.ui.showApp();
+                            window.ui.showSuccess('Welcome back!');
+                            console.log('Navigation completed with fetched profile');
+                        } catch (error) {
+                            console.error('Error fetching user profile:', error);
+                            console.log('Profile fetch failed, this may be due to insufficient scopes. Clearing auth to force re-authentication with updated permissions.');
+                            // If profile fetch fails, sign out to force re-authentication with new scopes
+                            await this.signOut();
+                            if (window.ui) {
+                                window.ui.showSuccess('Please sign in again to update permissions');
+                            }
+                        }
+                    }
+                }
+            } else {
+                console.error('window.ui not available');
+            }
             return;
         }
 
         try {
-            // Request access token
+            // Request access token with updated scopes
             this.tokenClient.requestAccessToken({
-                prompt: 'consent'
+                prompt: 'consent',
+                include_granted_scopes: true
             });
         } catch (error) {
             console.error('Sign-in failed:', error);
