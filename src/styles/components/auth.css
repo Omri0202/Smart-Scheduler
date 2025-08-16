@@ -115,22 +115,47 @@
     margin-bottom: 2rem;
 }
 
-/* Sign out button */
+/* Sign out button - Enhanced contrast */
 .sign-out-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
+    background: rgba(239, 68, 68, 0.1); /* Light red background */
+    border: 2px solid #ef4444; /* Red border */
+    color: #dc2626; /* Dark red text */
     padding: 0.5rem 1rem;
-    border-radius: var(--radius);
+    border-radius: 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.875rem;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: center;
 }
 
 .sign-out-btn:hover {
-    background: var(--bg);
-    border-color: var(--primary);
-    color: var(--primary);
+    background: #ef4444; /* Solid red background on hover */
+    border-color: #dc2626; /* Darker red border */
+    color: #ffffff; /* White text on hover */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.sign-out-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+/* Dark mode overrides for sign out button */
+@media (prefers-color-scheme: dark) {
+    .sign-out-btn {
+        background: rgba(248, 113, 113, 0.15); /* Slightly lighter red for dark mode */
+        border-color: #f87171; /* Lighter red border for dark mode */
+        color: #fca5a5; /* Light red text for dark mode */
+    }
+    
+    .sign-out-btn:hover {
+        background: #ef4444;
+        border-color: #dc2626;
+        color: #ffffff;
+    }
 }
 
 /* Demo mode button */

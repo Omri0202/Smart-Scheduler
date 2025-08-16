@@ -184,32 +184,240 @@ class GoogleAuthProvider {
     }
 
     /**
-     * Sign out user
+     * Sign out user - complete cleanup
      */
     async signOut() {
         try {
             const token = this.authStateManager.getAccessToken();
             
+            console.log('Starting complete sign out process...');
+
+            // Step 1: Revoke Google token
             if (token) {
-                // Revoke the token
-                await this.googleAPIHelper.revokeToken(token);
+                try {
+                    await this.googleAPIHelper.revokeToken(token);
+                    console.log('Google token revoked successfully');
+                } catch (revokeError) {
+                    console.warn('Failed to revoke Google token:', revokeError);
+                    // Continue with cleanup even if revoke fails
+                }
             }
 
-            // Update auth state
+            // Step 2: Clear GAPI client token
+            if (window.gapi && window.gapi.client) {
+                try {
+                    window.gapi.client.setToken(null);
+                    console.log('GAPI client token cleared');
+                } catch (gapiError) {
+                    console.warn('Failed to clear GAPI token:', gapiError);
+                }
+            }
+
+            // Step 3: Sign out from Google Identity Services
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                try {
+                    window.google.accounts.id.disableAutoSelect();
+                    console.log('Google Identity Services auto-select disabled');
+                } catch (gisError) {
+                    console.warn('Failed to disable GIS auto-select:', gisError);
+                }
+            }
+
+            // Step 4: Clear all localStorage (comprehensive)
+            try {
+                console.log('localStorage before clearing:', { ...localStorage });
+                
+                // Clear specific smart scheduler items first
+                const specificItems = [
+                    'smart_scheduler_access_token',
+                    'smart_scheduler_token_expiry', 
+                    'smart_scheduler_user_profile',
+                    'smart_scheduler_auth_state',
+                    'smart_scheduler_session',
+                    'gapi.client::plus',
+                    'gapi.client::https://www.googleapis.com/oauth2/v2/userinfo',
+                    'gapi.client::https://www.googleapis.com/auth/calendar'
+                ];
+                
+                specificItems.forEach(item => {
+                    localStorage.removeItem(item);
+                    console.log(`Removed localStorage item: ${item}`);
+                });
+                
+                // Clear any other app-specific items (more comprehensive)
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.startsWith('smart_scheduler_') || 
+                        key.startsWith('google_') || 
+                        key.startsWith('gapi') ||
+                        key.startsWith('__gsi') ||
+                        key.startsWith('G_') ||
+                        key.includes('oauth') ||
+                        key.includes('token') ||
+                        key.includes('auth')
+                    )) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    console.log(`Removed localStorage key: ${key}`);
+                });
+                
+                console.log('localStorage after clearing:', { ...localStorage });
+                console.log('localStorage cleared of authentication data');
+            } catch (storageError) {
+                console.warn('Failed to clear localStorage:', storageError);
+                // Nuclear option for localStorage
+                try {
+                    localStorage.clear();
+                    console.log('Used nuclear option: localStorage.clear()');
+                } catch (nuclearError) {
+                    console.error('Even nuclear localStorage clear failed:', nuclearError);
+                }
+            }
+
+            // Step 5: Clear all sessionStorage (comprehensive)
+            try {
+                console.log('sessionStorage before clearing:', { ...sessionStorage });
+                
+                // Clear specific items first
+                const specificSessionItems = [
+                    'smart_scheduler_session',
+                    'smart_scheduler_temp_state',
+                    'google_auth_state',
+                    'gapi_auth_state',
+                    'oauth_state',
+                    'auth_token',
+                    'access_token'
+                ];
+                
+                specificSessionItems.forEach(item => {
+                    sessionStorage.removeItem(item);
+                    console.log(`Removed sessionStorage item: ${item}`);
+                });
+                
+                // Clear any other auth-related items (more comprehensive)
+                const sessionKeysToRemove = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (
+                        key.startsWith('smart_scheduler_') || 
+                        key.startsWith('google_') || 
+                        key.startsWith('gapi') ||
+                        key.startsWith('__gsi') ||
+                        key.startsWith('G_') ||
+                        key.includes('oauth') ||
+                        key.includes('token') ||
+                        key.includes('auth')
+                    )) {
+                        sessionKeysToRemove.push(key);
+                    }
+                }
+                sessionKeysToRemove.forEach(key => {
+                    sessionStorage.removeItem(key);
+                    console.log(`Removed sessionStorage key: ${key}`);
+                });
+                
+                console.log('sessionStorage after clearing:', { ...sessionStorage });
+                console.log('sessionStorage cleared of authentication data');
+            } catch (sessionError) {
+                console.warn('Failed to clear sessionStorage:', sessionError);
+                // Nuclear option for sessionStorage
+                try {
+                    sessionStorage.clear();
+                    console.log('Used nuclear option: sessionStorage.clear()');
+                } catch (nuclearError) {
+                    console.error('Even nuclear sessionStorage clear failed:', nuclearError);
+                }
+            }
+
+            // Step 6: Update auth state manager
             this.authStateManager.setUnauthenticated();
 
-            // Update UI
-            if (window.ui) {
-                window.ui.showLoginScreen();
-                window.ui.showSuccess('Successfully signed out.');
+            // Step 7: Clear conversation history
+            if (window.llm) {
+                try {
+                    window.llm.clearHistory();
+                    console.log('LLM conversation history cleared');
+                } catch (llmError) {
+                    console.warn('Failed to clear LLM history:', llmError);
+                }
             }
 
-            console.log('User signed out successfully');
+            // Step 8: Verify storage is actually cleared
+            const remainingLocalItems = [];
+            const remainingSessionItems = [];
+            
+            // Check localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.startsWith('smart_scheduler_') || 
+                    key.startsWith('google_') || 
+                    key.startsWith('gapi') ||
+                    key.includes('auth') ||
+                    key.includes('token')
+                )) {
+                    remainingLocalItems.push(key);
+                }
+            }
+            
+            // Check sessionStorage
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && (
+                    key.startsWith('smart_scheduler_') || 
+                    key.startsWith('google_') || 
+                    key.startsWith('gapi') ||
+                    key.includes('auth') ||
+                    key.includes('token')
+                )) {
+                    remainingSessionItems.push(key);
+                }
+            }
+            
+            if (remainingLocalItems.length > 0 || remainingSessionItems.length > 0) {
+                console.warn('Some auth items still remain:', { remainingLocalItems, remainingSessionItems });
+                // Force clear any remaining items
+                remainingLocalItems.forEach(key => localStorage.removeItem(key));
+                remainingSessionItems.forEach(key => sessionStorage.removeItem(key));
+            }
+
+            // Step 9: Update UI
+            if (window.ui) {
+                window.ui.showLoginScreen();
+                window.ui.showSuccess('Successfully signed out from all services.');
+            }
+
+            console.log('Complete sign out process finished successfully');
+            
+            // Step 10: Force page reload after a short delay to ensure complete cleanup
+            setTimeout(() => {
+                console.log('Forcing page reload to ensure complete signout...');
+                window.location.reload();
+            }, 1500);
             
         } catch (error) {
             console.error('Sign-out error:', error);
-            // Still clear local state even if revoke fails
-            this.authStateManager.setUnauthenticated();
+            
+            // Emergency cleanup - force clear everything even if other steps failed
+            try {
+                this.authStateManager.setUnauthenticated();
+                localStorage.clear(); // Nuclear option
+                sessionStorage.clear(); // Nuclear option
+                
+                if (window.ui) {
+                    window.ui.showLoginScreen();
+                    window.ui.showError('Signed out with some errors. Please refresh if you experience issues.');
+                }
+            } catch (emergencyError) {
+                console.error('Emergency cleanup failed:', emergencyError);
+                // Force page reload as last resort
+                window.location.reload();
+            }
         }
     }
 

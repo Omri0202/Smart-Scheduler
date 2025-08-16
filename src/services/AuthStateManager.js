@@ -71,22 +71,50 @@ class AuthStateManager {
     }
 
     /**
-     * Set user as not authenticated
+     * Set user as not authenticated - complete cleanup
      */
     setUnauthenticated() {
+        console.log('AuthStateManager: Starting complete unauthentication cleanup...');
+        
+        // Clear token manager
         this.tokenManager.clearToken();
         this.userProfile = null;
         this.isAuthenticated = false;
 
-        // Clear stored user profile
-        localStorage.removeItem('smart_scheduler_user_profile');
+        // Clear all authentication-related localStorage items
+        try {
+            localStorage.removeItem('smart_scheduler_user_profile');
+            localStorage.removeItem('smart_scheduler_access_token');
+            localStorage.removeItem('smart_scheduler_token_expiry');
+            localStorage.removeItem('smart_scheduler_auth_state');
+            console.log('AuthStateManager: localStorage authentication data cleared');
+        } catch (error) {
+            console.warn('AuthStateManager: Failed to clear localStorage:', error);
+        }
+
+        // Clear all authentication-related sessionStorage items
+        try {
+            sessionStorage.removeItem('smart_scheduler_session');
+            sessionStorage.removeItem('smart_scheduler_temp_state');
+            console.log('AuthStateManager: sessionStorage authentication data cleared');
+        } catch (error) {
+            console.warn('AuthStateManager: Failed to clear sessionStorage:', error);
+        }
 
         // Clear global access token
         if (window.gapi && window.gapi.client) {
-            window.gapi.client.setToken(null);
+            try {
+                window.gapi.client.setToken(null);
+                console.log('AuthStateManager: GAPI client token cleared');
+            } catch (error) {
+                console.warn('AuthStateManager: Failed to clear GAPI token:', error);
+            }
         }
 
+        // Notify all listeners
         this.notifyAuthStateChange(false);
+        
+        console.log('AuthStateManager: Complete unauthentication cleanup finished');
     }
 
     /**
