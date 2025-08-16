@@ -1,11 +1,9 @@
 // Service Worker for Smart Scheduler PWA
-const CACHE_NAME = 'smart-scheduler-v1';
+const CACHE_NAME = 'smart-scheduler-v2';
 const urlsToCache = [
   '/',
-  '/.idea/index.html',
-  'manifest.json',
-  'https://accounts.google.com/gsi/client',
-  'https://apis.google.com/js/api.js'
+  '/index.html',
+  'manifest.json'
 ];
 
 // Install event - cache resources
@@ -21,13 +19,21 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
+  // Skip external requests to avoid CORS issues
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
         return response || fetch(event.request);
-      }
-    )
+      })
+      .catch((error) => {
+        console.log('Fetch failed:', error);
+        throw error;
+      })
   );
 });
 
