@@ -6,6 +6,10 @@ const CONFIG = {
             console.error('VITE_GOOGLE_CLIENT_ID not configured');
             return 'GOOGLE_CLIENT_ID_NOT_CONFIGURED';
         })(),
+        API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || (() => {
+            console.error('VITE_GOOGLE_API_KEY not configured');
+            return 'GOOGLE_API_KEY_NOT_CONFIGURED';
+        })(),
         SCOPES: import.meta.env.VITE_GOOGLE_SCOPES || 'https://www.googleapis.com/auth/calendar',
         DISCOVERY_DOCS: [import.meta.env.VITE_GOOGLE_DISCOVERY_DOCS || 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
     },
