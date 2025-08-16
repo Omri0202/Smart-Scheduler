@@ -33,8 +33,11 @@ CRITICAL RULES:
 - NEVER make up meeting details, times, or confirmations  
 - ONLY reference real calendar events provided in the context
 - Use the user's real name and calendar data when available in context
-- IF context shows "CALENDAR ACCESS CONFIRMED", you DO have access and should use the calendar data
-- IF no calendar data in context, then you don't have access
+
+CALENDAR ACCESS DETECTION:
+- IF context contains "✅ CALENDAR ACCESS CONFIRMED", you DO have access - use the provided calendar data
+- IF context contains "❌ CALENDAR ACCESS NOT AVAILABLE", you do NOT have access - be honest about this
+- NEVER contradict yourself - if you have access, confidently use the data; if not, clearly state you don't have access
 
 MEETING CREATION PROCESS:
 1. COLLECT MINIMUM REQUIRED INFO: title, date, start time, duration/end time
@@ -152,15 +155,29 @@ Current: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
         }
 
         if (context.calendarEvents && context.calendarEvents.length > 0) {
-            const eventSummary = context.calendarEvents.slice(0, 5).map(event => 
-                `${event.summary} (${event.start})`
-            ).join(', ');
-            contextParts.push(`CALENDAR ACCESS CONFIRMED - Upcoming events: ${eventSummary}`);
+            const eventSummary = context.calendarEvents.slice(0, 5).map(event => {
+                const startDate = new Date(event.start);
+                const formattedDate = startDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                const formattedTime = startDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                return `${event.summary} on ${formattedDate} at ${formattedTime}`;
+            }).join('; ');
+            
+            contextParts.push(`✅ CALENDAR ACCESS CONFIRMED - You have ${context.calendarEvents.length} upcoming events: ${eventSummary}`);
             if (context.calendarEvents.length > 5) {
-                contextParts.push(`Plus ${context.calendarEvents.length - 5} more events`);
+                contextParts.push(`Plus ${context.calendarEvents.length - 5} more events not shown`);
             }
         } else if (context.calendarEvents && context.calendarEvents.length === 0) {
-            contextParts.push('CALENDAR ACCESS CONFIRMED - No upcoming events found in calendar');
+            contextParts.push('✅ CALENDAR ACCESS CONFIRMED - Your calendar is clear with no upcoming events');
+        } else {
+            contextParts.push('❌ CALENDAR ACCESS NOT AVAILABLE - Cannot access calendar data');
         }
 
         if (context.preferences) {
